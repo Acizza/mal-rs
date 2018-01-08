@@ -1,3 +1,5 @@
+//! This module handles adding / updating / removing anime to a user's list.
+
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
@@ -114,7 +116,7 @@ impl<'a> AnimeList<'a> {
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
     /// 
-    /// /// // Search for "Toradora" on MyAnimeList
+    /// // Search for "Toradora" on MyAnimeList
     /// let mut search_results = mal.search("Toradora").unwrap();
     /// 
     /// // Use the first result's info
@@ -171,7 +173,7 @@ impl<'a> AnimeList<'a> {
     ///               .set_score(10)
     ///               .set_status(Status::Completed);
     /// 
-    /// // Update the anime on the user's list and clear the modified changeset
+    /// // Update the anime on the user's list
     /// anime_list.update(&mut toradora_entry).unwrap();
     /// 
     /// assert_eq!(toradora_entry.watched_episodes(), 25);

@@ -1,3 +1,34 @@
+//! The purpose of this library is to provide high-level access to the MyAnimeList API.
+//! It allows you to search for anime / manga on MyAnimeList, as well as add / update / delete anime from a user's list.
+//! 
+//! # Examples
+//! 
+//! ```no_run
+//! use mal::{MAL, SeriesInfo};
+//! use mal::list::{AnimeList, ListEntry, Status};
+//! 
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//! 
+//! // Search for "Toradora" on MyAnimeList
+//! let mut search_results = mal.search("Toradora").unwrap();
+//! 
+//! // Use the first result's info
+//! let toradora_info = search_results.swap_remove(0);
+//! 
+//! // Create a new AnimeList instance
+//! let anime_list = AnimeList::new(&mal);
+//! 
+//! // Create a new anime list entry with Toradora's info
+//! let mut entry = ListEntry::new(toradora_info);
+//! 
+//! // Set the entry's watched episodes to 5 and status to watching
+//! entry.set_watched_episodes(5).set_status(Status::Watching);
+//! 
+//! // Add the entry to the user's anime list
+//! anime_list.add(&entry).unwrap();
+//! ```
+
 #[macro_use]
 extern crate failure;
 #[macro_use]
