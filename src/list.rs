@@ -16,7 +16,7 @@ use util;
 /// the [MAL] instance must live as long as the `AnimeList`.
 /// 
 /// [MAL]: ../struct.MAL.html
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct AnimeList<'a> {
     /// A reference to the MyAnimeList client used to add and update anime on a user's list.
     pub mal: &'a MAL,
