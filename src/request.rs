@@ -9,8 +9,8 @@ pub type ID = u32;
 pub enum RequestURL<'a> {
     AnimeList(&'a str),
     Search(&'a str),
-    Add(ID),
-    Update(ID),
+    AddAnime(ID),
+    UpdateAnime(ID),
     DeleteAnime(ID),
     VerifyCredentials,
 }
@@ -40,10 +40,10 @@ impl<'a> Into<Url> for RequestURL<'a> {
                 url.set_path("/api/anime/search.xml");
                 url.query_pairs_mut().append_pair("q", name);
             }
-            RequestURL::Add(id) => {
+            RequestURL::AddAnime(id) => {
                 url.set_path(&format!("/api/animelist/add/{}.xml", id));
             }
-            RequestURL::Update(id) => {
+            RequestURL::UpdateAnime(id) => {
                 url.set_path(&format!("/api/animelist/update/{}.xml", id));
             }
             RequestURL::DeleteAnime(id) => {

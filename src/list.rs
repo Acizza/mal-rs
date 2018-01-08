@@ -139,7 +139,7 @@ impl<'a> AnimeList<'a> {
         let body = entry.generate_xml()?;
 
         request::auth_post_verify(self.mal,
-            RequestURL::Add(entry.series_info.id),
+            RequestURL::AddAnime(entry.series_info.id),
             &body)?;
 
         Ok(())
@@ -185,7 +185,7 @@ impl<'a> AnimeList<'a> {
         let body = entry.generate_xml()?;
         
         request::auth_post_verify(self.mal,
-            RequestURL::Update(entry.series_info.id),
+            RequestURL::UpdateAnime(entry.series_info.id),
             &body)?;
 
         entry.reset_changed_status();
