@@ -230,6 +230,31 @@ impl<'a> AnimeList<'a> {
 
         Ok(())
     }
+
+    /// Removes an anime from the user's list by its id on MyAnimeList.
+    /// 
+    /// If the anime isn't already on the user's list, nothing will happen.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::{MAL, SeriesInfo};
+    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// 
+    /// // Create a new MAL instance
+    /// let mal = MAL::new("username", "password");
+    /// 
+    /// // Create a new AnimeList instance
+    /// let anime_list = AnimeList::new(&mal);
+    /// 
+    /// // Delete the anime with the id of 4224 (Toradora) from the user's anime list
+    /// anime_list.delete_id(4224).unwrap();
+    /// ```
+    #[inline]
+    pub fn delete_id(&self, id: u32) -> Result<(), Error> {
+        request::auth_delete_verify(self.mal, RequestURL::DeleteAnime(id))?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
