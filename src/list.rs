@@ -191,6 +191,45 @@ impl<'a> AnimeList<'a> {
         entry.reset_changed_status();
         Ok(())
     }
+
+    /// Removes an anime from the user's list.
+    /// 
+    /// If the anime isn't already on the user's list, nothing will happen.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::{MAL, SeriesInfo};
+    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// 
+    /// // Create a new MAL instance
+    /// let mal = MAL::new("username", "password");
+    /// 
+    /// // Search for "Toradora" on MyAnimeList
+    /// let mut search_results = mal.search("Toradora").unwrap();
+    /// 
+    /// // Use the first result's info
+    /// let toradora_info = search_results.swap_remove(0);
+    /// 
+    /// // Create a new AnimeList instance
+    /// let anime_list = AnimeList::new(&mal);
+    /// 
+    /// // Get and parse all of the list entries
+    /// let entries = anime_list.read_entries().unwrap();
+    /// 
+    /// // Find Toradora in the list entries
+    /// let toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    /// 
+    /// // Delete Toradora from the user's anime list
+    /// anime_list.delete(&toradora_entry).unwrap();
+    /// ```
+    #[inline]
+    pub fn delete(&self, entry: &ListEntry) -> Result<(), Error> {
+        request::auth_delete_verify(self.mal,
+            RequestURL::DeleteAnime(entry.series_info.id))?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]

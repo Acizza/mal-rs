@@ -11,6 +11,7 @@ pub enum RequestURL<'a> {
     Search(&'a str),
     Add(ID),
     Update(ID),
+    DeleteAnime(ID),
     VerifyCredentials,
 }
 
@@ -44,6 +45,9 @@ impl<'a> Into<Url> for RequestURL<'a> {
             }
             RequestURL::Update(id) => {
                 url.set_path(&format!("/api/animelist/update/{}.xml", id));
+            }
+            RequestURL::DeleteAnime(id) => {
+                url.set_path(&format!("/api/animelist/delete/{}.xml", id));
             }
             RequestURL::VerifyCredentials => {
                 url.set_path("/api/account/verify_credentials.xml");
@@ -88,6 +92,18 @@ pub fn auth_post(mal: &MAL, req_type: RequestURL, body: &str) -> Result<Response
 
 pub fn auth_post_verify(mal: &MAL, req_type: RequestURL, body: &str) -> Result<Response, Error> {
     let resp = auth_post(mal, req_type, body)?;
+    verify_good_response(&resp)?;
+
+    Ok(resp)
+}
+
+pub fn auth_delete(mal: &MAL, req_type: RequestURL) -> Result<Response, Error> {
+    let url: Url = req_type.into();
+    send_auth_req(mal, &mut mal.client.delete(url))
+}
+
+pub fn auth_delete_verify(mal: &MAL, req_type: RequestURL) -> Result<Response, Error> {
+    let resp = auth_delete(mal, req_type)?;
     verify_good_response(&resp)?;
 
     Ok(resp)
