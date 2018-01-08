@@ -6,16 +6,18 @@ extern crate lazy_static;
 pub mod list;
 
 mod request;
+mod util;
 
 extern crate chrono;
 extern crate minidom;
 extern crate reqwest;
 
-use failure::{Error, SyncFailure};
+use failure::{Error, ResultExt, SyncFailure};
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
 use std::convert::Into;
+use util::get_xml_child_text;
 
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
@@ -35,14 +37,6 @@ impl PartialEq for SeriesInfo {
     }
 }
 
-#[derive(Fail, Debug)]
-#[fail(display = "unable to find XML node named '{}' in MAL response", _0)]
-pub struct MissingXMLNode(pub String);
-
-#[derive(Fail, Debug)]
-#[fail(display = "received bad response from MAL: {} {}", _0, _1)]
-pub struct BadResponse(pub u16, pub String);
-
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
 #[derive(Debug)]
 pub struct MAL {
@@ -57,7 +51,7 @@ pub struct MAL {
 impl MAL {
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
     ///
-    /// If you only need to call `MAL::get_anime_list`, then the `password` field can be an empty string.
+    /// If you only need to retrieve the user's anime list, then you do not need to provide a valid password.
     #[inline]
     pub fn new<S: Into<String>>(username: S, password: S) -> MAL {
         MAL {
@@ -91,7 +85,10 @@ impl MAL {
         let mut entries = Vec::new();
 
         for child in root.children() {
-            let get_child = |name| get_xml_child_text(child, name);
+            let get_child = |name| {
+                get_xml_child_text(child, name)
+                    .context("failed to parse MAL response")
+            };
 
             let entry = SeriesInfo {
                 id: get_child("id")?.parse()?,
@@ -125,11 +122,4 @@ impl MAL {
         let resp = request::auth_get(self, RequestURL::VerifyCredentials)?;
         Ok(resp.status() == StatusCode::Ok)
     }
-}
-
-fn get_xml_child_text(elem: &minidom::Element, name: &str) -> Result<String, MissingXMLNode> {
-    elem.children()
-        .find(|c| c.name() == name)
-        .map(|c| c.text())
-        .ok_or_else(|| MissingXMLNode(name.into()))
 }

@@ -1,12 +1,12 @@
 use chrono::NaiveDate;
-use failure::{Error, SyncFailure};
-use get_xml_child_text;
+use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
 use request;
 use RequestURL;
 use SeriesInfo;
 use std::fmt::Debug;
+use util::get_xml_child_text;
 
 /// Used to perform operations on a user's anime list.
 /// 
@@ -71,7 +71,10 @@ impl<'a> AnimeList<'a> {
         let mut entries = Vec::new();
 
         for child in root.children().skip(1) {
-            let get_child = |name| get_xml_child_text(child, name);
+            let get_child = |name| {
+                get_xml_child_text(child, name)
+                    .context("failed to parse MAL response")
+            };
 
             let info = SeriesInfo {
                 id: get_child("series_animedb_id")?.parse()?,
