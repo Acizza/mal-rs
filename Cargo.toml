@@ -1,0 +1,11 @@
+[package]
+name = "mal"
+version = "0.1.0"
+authors = ["Acizza <jonathanmce@gmail.com>"]
+
+[dependencies]
+chrono      = "0.4"
+failure     = "0.1"
+lazy_static = "1.0"
+minidom     = "0.7"
+reqwest     = "0.8"
