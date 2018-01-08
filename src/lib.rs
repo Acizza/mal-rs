@@ -12,12 +12,12 @@ extern crate chrono;
 extern crate minidom;
 extern crate reqwest;
 
+use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
 use std::convert::Into;
-use util::get_xml_child_text;
 
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
@@ -28,6 +28,10 @@ pub struct SeriesInfo {
     pub title: String,
     /// The number of episodes in the anime series.
     pub episodes: u32,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
 }
 
 impl PartialEq for SeriesInfo {
@@ -94,7 +98,7 @@ impl MAL {
 
         for child in root.children() {
             let get_child = |name| {
-                get_xml_child_text(child, name)
+                util::get_xml_child_text(child, name)
                     .context("failed to parse MAL response")
             };
 
@@ -102,6 +106,8 @@ impl MAL {
                 id: get_child("id")?.parse()?,
                 title: get_child("title")?,
                 episodes: get_child("episodes")?.parse()?,
+                start_date: util::parse_str_date(&get_child("start_date")?),
+                end_date: util::parse_str_date(&get_child("end_date")?),
             };
 
             entries.push(entry);

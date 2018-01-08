@@ -6,7 +6,7 @@ use request;
 use RequestURL;
 use SeriesInfo;
 use std::fmt::Debug;
-use util::get_xml_child_text;
+use util;
 
 /// Used to perform operations on a user's anime list.
 /// 
@@ -72,7 +72,7 @@ impl<'a> AnimeList<'a> {
 
         for child in root.children().skip(1) {
             let get_child = |name| {
-                get_xml_child_text(child, name)
+                util::get_xml_child_text(child, name)
                     .context("failed to parse MAL response")
             };
 
@@ -80,13 +80,15 @@ impl<'a> AnimeList<'a> {
                 id: get_child("series_animedb_id")?.parse()?,
                 title: get_child("series_title")?,
                 episodes: get_child("series_episodes")?.parse()?,
+                start_date: util::parse_str_date(&get_child("series_start")?),
+                end_date: util::parse_str_date(&get_child("series_end")?),
             };
 
             let entry = ListEntry {
                 series_info: info,
                 watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
-                start_date: parse_str_date(&get_child("my_start_date")?).into(),
-                finish_date: parse_str_date(&get_child("my_finish_date")?).into(),
+                start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
+                finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
                 status: Status::from_i32(get_child("my_status")?.parse()?)?.into(),
                 score: get_child("my_score")?.parse::<u8>()?.into(),
                 rewatching: (get_child("my_rewatching")?.parse::<u8>()? == 1).into(),
@@ -189,14 +191,6 @@ impl<'a> AnimeList<'a> {
     }
 }
 
-fn parse_str_date(date: &str) -> Option<NaiveDate> {
-    if date != "0000-00-00" {
-        NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
-    } else {
-        None
-    }
-}
-
 #[derive(Debug, Clone)]
 struct ChangeTracker<T: Debug + Clone> {
     value: T,
@@ -293,8 +287,8 @@ impl ListEntry {
         gen_xml!(self, entry,
             watched_episodes(num): "episode" => num.to_string(),
             status(status): "status" => (*status as i32).to_string(),
-            start_date(date): "date_start" => date_to_str(*date),
-            finish_date(date): "date_finish" => date_to_str(*date),
+            start_date(date): "date_start" => util::date_to_str(*date),
+            finish_date(date): "date_finish" => util::date_to_str(*date),
             score(score): "score" => score.to_string(),
             rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
             tags(t): "tags" => concat_tags(&t)
@@ -429,16 +423,6 @@ fn parse_tags(tag_str: &str) -> Vec<String> {
 
 fn concat_tags(tags: &[String]) -> String {
     tags.iter().map(|tag| format!("{},", tag)).collect()
-}
-
-fn date_to_str(date: Option<NaiveDate>) -> String {
-    match date {
-        Some(date) => date.format("%m%d%Y").to_string(),
-        None => {
-            // MAL uses an all-zero date to represent a non-set one
-            "00000000".into()
-        }
-    }
 }
 
 #[derive(Fail, Debug)]
