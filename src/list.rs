@@ -90,6 +90,7 @@ impl<'a> AnimeList<'a> {
                 status: Status::from_i32(get_child("my_status")?.parse()?)?.into(),
                 score: get_child("my_score")?.parse::<u8>()?.into(),
                 rewatching: (get_child("my_rewatching")?.parse::<u8>()? == 1).into(),
+                tags: parse_tags(&get_child("my_tags")?).into(),
             };
 
             entries.push(entry);
@@ -210,10 +211,6 @@ impl<T: Debug + Clone> ChangeTracker<T> {
         }
     }
 
-    fn get(&self) -> &T {
-        &self.value
-    }
-
     fn set(&mut self, value: T) {
         self.value = value;
         self.changed = true;
@@ -237,6 +234,7 @@ pub struct ListEntry {
     status: ChangeTracker<Status>,
     score: ChangeTracker<u8>,
     rewatching: ChangeTracker<bool>,
+    tags: ChangeTracker<Vec<String>>,
 }
 
 impl ListEntry {
@@ -273,6 +271,7 @@ impl ListEntry {
             status: Status::default().into(),
             score: 0.into(),
             rewatching: false.into(),
+            tags: Vec::new().into(),
         }
     }
 
@@ -280,7 +279,7 @@ impl ListEntry {
         macro_rules! gen_xml {
             ($entry:ident, $xml_elem:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr),+) => {
                 $(if $entry.$field.changed {
-                    let $val_name = $entry.$field.get();
+                    let $val_name = &$entry.$field.value;
 
                     let mut elem = Element::bare($xml_name);
                     elem.append_text_node($xml_val);
@@ -297,7 +296,8 @@ impl ListEntry {
             start_date(date): "date_start" => date_to_str(*date),
             finish_date(date): "date_finish" => date_to_str(*date),
             score(score): "score" => score.to_string(),
-            rewatching(v): "enable_rewatching" => (*v as u8).to_string()
+            rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
+            tags(t): "tags" => concat_tags(&t)
         );
 
         let mut buffer = Vec::new();
@@ -317,14 +317,15 @@ impl ListEntry {
             finish_date,
             status,
             score,
-            rewatching
+            rewatching,
+            tags
         }
     }
 
     /// Returns the number of episodes watched.
     #[inline]
     pub fn watched_episodes(&self) -> u32 {
-        *self.watched_episodes.get()
+        self.watched_episodes.value
     }
 
     /// Sets the watched episode count.
@@ -336,8 +337,8 @@ impl ListEntry {
 
     /// Returns the date the anime started being watched.
     #[inline]
-    pub fn start_date(&self) -> &Option<NaiveDate> {
-        self.start_date.get()
+    pub fn start_date(&self) -> Option<NaiveDate> {
+        self.start_date.value
     }
 
     /// Sets the date the user started watching the anime.
@@ -349,8 +350,8 @@ impl ListEntry {
 
     /// Returns the date the anime finished being watched.
     #[inline]
-    pub fn finish_date(&self) -> &Option<NaiveDate> {
-        self.finish_date.get()
+    pub fn finish_date(&self) -> Option<NaiveDate> {
+        self.finish_date.value
     }
 
     /// Sets the date the user finished watching the anime.
@@ -363,7 +364,7 @@ impl ListEntry {
     /// Returns the current watch status of the anime.
     #[inline]
     pub fn status(&self) -> Status {
-        *self.status.get()
+        self.status.value
     }
 
     /// Sets the current watch status for the anime.
@@ -376,7 +377,7 @@ impl ListEntry {
     /// Returns the user's score of the anime.
     #[inline]
     pub fn score(&self) -> u8 {
-        *self.score.get()
+        self.score.value
     }
 
     /// Sets the user's score for the anime.
@@ -389,7 +390,7 @@ impl ListEntry {
     /// Returns true if the anime is currently being rewatched.
     #[inline]
     pub fn rewatching(&self) -> bool {
-        *self.rewatching.get()
+        self.rewatching.value
     }
 
     /// Sets whether or not the user is currently rewatching the anime.
@@ -398,6 +399,21 @@ impl ListEntry {
         self.rewatching.set(rewatching);
         self
     }
+
+    /// Returns the tags the user has set for the anime.
+    #[inline]
+    pub fn tags(&self) -> &Vec<String> {
+        &self.tags.value
+    }
+
+    /// Returns a mutable reference to the tags the user has set for the anime.
+    #[inline]
+    pub fn tags_mut(&mut self) -> &mut Vec<String> {
+        // If a mutable reference is being requested, then it's safe to assume the values
+        // are going to be changed
+        self.tags.changed = true;
+        &mut self.tags.value
+    }
 }
 
 impl PartialEq for ListEntry {
@@ -405,6 +421,14 @@ impl PartialEq for ListEntry {
     fn eq(&self, other: &ListEntry) -> bool {
         self.series_info == other.series_info
     }
+}
+
+fn parse_tags(tag_str: &str) -> Vec<String> {
+    tag_str.split(',').map(|s| s.to_string()).collect()
+}
+
+fn concat_tags(tags: &[String]) -> String {
+    tags.iter().map(|tag| format!("{},", tag)).collect()
 }
 
 fn date_to_str(date: Option<NaiveDate>) -> String {
