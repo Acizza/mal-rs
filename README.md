@@ -16,8 +16,8 @@ fn main() {
     // Create a new MAL instance
     let mal = MAL::new("username", "password");
 
-    // Create a new AnimeList instance
-    let anime_list = AnimeList::new(&mal);
+    // Get a handle to the user's anime list
+    let anime_list = mal.anime_list();
 
     // Get and parse all of the list entries
     let entries = anime_list.read_entries().unwrap();
