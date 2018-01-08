@@ -16,35 +16,15 @@ use util;
 /// the [MAL] instance must live as long as the `AnimeList`.
 /// 
 /// [MAL]: ../struct.MAL.html
+#[derive(Copy, Clone)]
 pub struct AnimeList<'a> {
     /// A reference to the MyAnimeList client used to add and update anime on a user's list.
     pub mal: &'a MAL,
 }
 
 impl<'a> AnimeList<'a> {
-    /// Creates a new instance of the `AnimeList` struct and stores the provided [MAL] reference
-    /// so authorization can be handled automatically.
-    /// 
-    /// [MAL]: ../struct.MAL.html
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::MAL;
-    /// use mal::list::AnimeList;
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Create a new AnimeList instance.
-    /// // Keep in mind that the MAL instance must now live for as long as the AnimeList
-    /// let anime_list = AnimeList::new(&mal);
-    /// ```
-    #[inline]
-    pub fn new(mal: &'a MAL) -> AnimeList<'a> {
-        AnimeList {
-            mal
-        }
+    pub(crate) fn new(mal: &'a MAL) -> AnimeList<'a> {
+        AnimeList { mal }
     }
 
     /// Requests and parses all entries on the user's anime list.
@@ -58,11 +38,8 @@ impl<'a> AnimeList<'a> {
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
     /// 
-    /// // Create a new AnimeList instance
-    /// let anime_list = AnimeList::new(&mal);
-    /// 
     /// // Read all list entries from the user's list
-    /// let entries = anime_list.read_entries().unwrap();
+    /// let entries = mal.anime_list().read_entries().unwrap();
     /// 
     /// assert!(entries.len() > 0);
     /// ```
@@ -122,9 +99,6 @@ impl<'a> AnimeList<'a> {
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
     /// 
-    /// // Create a new AnimeList instance
-    /// let anime_list = AnimeList::new(&mal);
-    /// 
     /// // Create a new anime list entry with Toradora's info
     /// let mut entry = ListEntry::new(toradora_info);
     /// 
@@ -132,7 +106,7 @@ impl<'a> AnimeList<'a> {
     /// entry.set_watched_episodes(5).set_status(Status::Watching);
     /// 
     /// // Add the entry to the user's anime list
-    /// anime_list.add(&entry).unwrap();
+    /// mal.anime_list().add(&entry).unwrap();
     /// ```
     #[inline]
     pub fn add(&self, entry: &ListEntry) -> Result<(), Error> {
@@ -158,8 +132,8 @@ impl<'a> AnimeList<'a> {
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
     /// 
-    /// // Create a new AnimeList instance
-    /// let anime_list = AnimeList::new(&mal);
+    /// // Get a handle to the user's anime list
+    /// let anime_list = mal.anime_list();
     /// 
     /// // Get and parse all of the list entries
     /// let entries = anime_list.read_entries().unwrap();
@@ -211,8 +185,8 @@ impl<'a> AnimeList<'a> {
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
     /// 
-    /// // Create a new AnimeList instance
-    /// let anime_list = AnimeList::new(&mal);
+    /// // Get a handle to the user's anime list
+    /// let anime_list = mal.anime_list();
     /// 
     /// // Get and parse all of the list entries
     /// let entries = anime_list.read_entries().unwrap();
@@ -244,11 +218,8 @@ impl<'a> AnimeList<'a> {
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
     /// 
-    /// // Create a new AnimeList instance
-    /// let anime_list = AnimeList::new(&mal);
-    /// 
     /// // Delete the anime with the id of 4224 (Toradora) from the user's anime list
-    /// anime_list.delete_id(4224).unwrap();
+    /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
     #[inline]
     pub fn delete_id(&self, id: u32) -> Result<(), Error> {

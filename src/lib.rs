@@ -16,9 +16,6 @@
 //! // Use the first result's info
 //! let toradora_info = search_results.swap_remove(0);
 //! 
-//! // Create a new AnimeList instance
-//! let anime_list = AnimeList::new(&mal);
-//! 
 //! // Create a new anime list entry with Toradora's info
 //! let mut entry = ListEntry::new(toradora_info);
 //! 
@@ -26,7 +23,7 @@
 //! entry.set_watched_episodes(5).set_status(Status::Watching);
 //! 
 //! // Add the entry to the user's anime list
-//! anime_list.add(&entry).unwrap();
+//! mal.anime_list().add(&entry).unwrap();
 //! ```
 
 #[macro_use]
@@ -45,6 +42,7 @@ extern crate reqwest;
 
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
+use list::AnimeList;
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
@@ -166,5 +164,13 @@ impl MAL {
     pub fn verify_credentials(&self) -> Result<bool, Error> {
         let resp = request::auth_get(self, RequestURL::VerifyCredentials)?;
         Ok(resp.status() == StatusCode::Ok)
+    }
+
+    /// Returns a new [AnimeList] instance to allow operations on the user's list.
+    /// 
+    /// [AnimeList]: ./list/struct.AnimeList.html
+    #[inline]
+    pub fn anime_list(&self) -> AnimeList {
+        AnimeList::new(self)
     }
 }
