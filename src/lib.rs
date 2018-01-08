@@ -50,7 +50,8 @@ pub struct MAL {
     pub username: String,
     /// The user's password on MyAnimeList.
     pub password: String,
-    client: reqwest::Client,
+    /// The client used to send requests to the API.
+    pub client: reqwest::Client,
 }
 
 impl MAL {
