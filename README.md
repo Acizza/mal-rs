@@ -1,4 +1,4 @@
-# mal-rs
+# mal-rs [![Crates.io](https://img.shields.io/crates/v/mal.svg)](https://crates.io/crates/mal) [![Documentation](https://docs.rs/mal/badge.svg)](https://docs.rs/mal)
 The purpose of this library is to provide high-level access to the MyAnimeList API. Currently you can only interact with a user's anime list, but the ability to interact with the user's manga list is planned for a future version.
 
 Please note that while most data fields are parsed from the API, there are some that are purposely ignored because they are only available when making certain types of requests.
