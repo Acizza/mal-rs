@@ -2,6 +2,13 @@
 name = "mal"
 version = "0.1.0"
 authors = ["Acizza <jonathanmce@gmail.com>"]
+description = "A library to interact with the MyAnimeList API."
+repository = "https://github.com/Acizza/mal-rs"
+readme = "README.md"
+keywords = ["mal", "myanimelist", "anime"]
+categories = ["api-bindings"]
+license = "MIT"
+
 
 [dependencies]
 chrono      = "0.4"
