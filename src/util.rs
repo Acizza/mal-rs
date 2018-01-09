@@ -14,7 +14,7 @@ pub fn get_xml_child_text(elem: &Element, name: &str) -> Result<String, MissingX
 
 pub fn parse_str_date(date: &str) -> Option<NaiveDate> {
     if date != "0000-00-00" {
-        NaiveDate::parse_from_str(&date, "%Y-%m-%d").ok()
+        NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
     } else {
         None
     }

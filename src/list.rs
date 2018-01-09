@@ -328,7 +328,7 @@ impl ListEntry {
             finish_date(date): "date_finish" => util::date_to_str(*date),
             score(score): "score" => score.to_string(),
             rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
-            tags(t): "tags" => concat_tags(&t)
+            tags(t): "tags" => concat_tags(t)
         );
 
         let mut buffer = Vec::new();
