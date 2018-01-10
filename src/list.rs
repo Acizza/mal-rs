@@ -70,7 +70,14 @@ impl<'a> AnimeList<'a> {
                 finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
                 status: Status::from_i32(get_child("my_status")?.parse()?)?.into(),
                 score: get_child("my_score")?.parse::<u8>()?.into(),
-                rewatching: (get_child("my_rewatching")?.parse::<u8>()? == 1).into(),
+                rewatching: {
+                    // The rewatching tag is sometimes blank for no apparent reason..
+                    get_child("my_rewatching")?
+                        .parse::<u8>()
+                        .map(|v| v == 1)
+                        .unwrap_or(false)
+                        .into()
+                },
                 tags: parse_tags(&get_child("my_tags")?).into(),
             };
 
