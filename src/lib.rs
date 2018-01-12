@@ -41,9 +41,11 @@ extern crate chrono;
 extern crate minidom;
 extern crate reqwest;
 
+#[cfg(feature="anime-list")]
+use list::anime::AnimeList;
+
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
-use list::anime::AnimeList;
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
@@ -170,6 +172,7 @@ impl MAL {
     /// Returns a new [AnimeList] instance to allow operations on the user's list.
     /// 
     /// [AnimeList]: ./list/anime/struct.AnimeList.html
+    #[cfg(feature="anime-list")]
     #[inline]
     pub fn anime_list(&self) -> AnimeList {
         AnimeList::new(self)

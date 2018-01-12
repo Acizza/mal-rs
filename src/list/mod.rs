@@ -1,5 +1,6 @@
 use failure::Error;
 
+#[cfg(feature="anime-list")]
 pub mod anime;
 
 /// Contains methods that perform common operations on a user's anime / manga list.

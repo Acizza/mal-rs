@@ -15,3 +15,9 @@ failure     = "0.1"
 lazy_static = "1.0"
 minidom     = "0.7"
 reqwest     = "0.8"
+
+[features]
+default = ["anime-list", "manga-list"]
+
+anime-list = []
+manga-list = []
