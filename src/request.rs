@@ -1,4 +1,5 @@
 use failure::Error;
+use list::ListType;
 use MAL;
 use reqwest::{Client, RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
@@ -7,11 +8,11 @@ pub type ID = u32;
 
 #[derive(Debug)]
 pub enum RequestURL<'a> {
-    AnimeList(&'a str),
-    Search(&'a str),
-    AddAnime(ID),
-    UpdateAnime(ID),
-    DeleteAnime(ID),
+    List(&'a str, ListType),
+    Search(&'a str, ListType),
+    Add(ID, ListType),
+    Update(ID, ListType),
+    Delete(ID, ListType),
     VerifyCredentials,
 }
 
@@ -28,26 +29,44 @@ impl<'a> Into<Url> for RequestURL<'a> {
         let mut url = BASE_URL.clone();
 
         match self {
-            RequestURL::AnimeList(uname) => {
+            RequestURL::List(uname, list_type) => {
                 url.set_path("/malappinfo.php");
+
+                let query = match list_type {
+                    ListType::Anime => "anime",
+                    ListType::Manga => "manga",
+                };
 
                 url.query_pairs_mut()
                     .append_pair("u", uname)
                     .append_pair("status", "all")
-                    .append_pair("type", "anime");
+                    .append_pair("type", query);
             }
-            RequestURL::Search(name) => {
+            RequestURL::Search(name, ListType::Anime) => {
                 url.set_path("/api/anime/search.xml");
                 url.query_pairs_mut().append_pair("q", name);
             }
-            RequestURL::AddAnime(id) => {
+            RequestURL::Search(name, ListType::Manga) => {
+                url.set_path("/api/manga/search.xml");
+                url.query_pairs_mut().append_pair("q", name);
+            }
+            RequestURL::Add(id, ListType::Anime) => {
                 url.set_path(&format!("/api/animelist/add/{}.xml", id));
             }
-            RequestURL::UpdateAnime(id) => {
+            RequestURL::Add(id, ListType::Manga) => {
+                url.set_path(&format!("/api/mangalist/add/{}.xml", id));
+            }
+            RequestURL::Update(id, ListType::Anime) => {
                 url.set_path(&format!("/api/animelist/update/{}.xml", id));
             }
-            RequestURL::DeleteAnime(id) => {
+            RequestURL::Update(id, ListType::Manga) => {
+                url.set_path(&format!("/api/mangalist/update/{}.xml", id));
+            }
+            RequestURL::Delete(id, ListType::Anime) => {
                 url.set_path(&format!("/api/animelist/delete/{}.xml", id));
+            }
+            RequestURL::Delete(id, ListType::Manga) => {
+                url.set_path(&format!("/api/mangalist/delete/{}.xml", id));
             }
             RequestURL::VerifyCredentials => {
                 url.set_path("/api/account/verify_credentials.xml");

@@ -4,7 +4,7 @@
 //! # Examples
 //! 
 //! ```no_run
-//! use mal::{MAL, SeriesInfo};
+//! use mal::{MAL, AnimeInfo};
 //! use mal::list::List;
 //! use mal::list::anime::{AnimeEntry, WatchStatus};
 //! 
@@ -12,7 +12,7 @@
 //! let mal = MAL::new("username", "password");
 //! 
 //! // Search for "Toradora" on MyAnimeList
-//! let mut search_results = mal.search("Toradora").unwrap();
+//! let mut search_results = mal.search_anime("Toradora").unwrap();
 //! 
 //! // Use the first result's info
 //! let toradora_info = search_results.swap_remove(0);
@@ -41,11 +41,14 @@ extern crate chrono;
 extern crate minidom;
 extern crate reqwest;
 
-#[cfg(feature="anime-list")]
+#[cfg(feature = "anime-list")]
 use list::anime::AnimeList;
+#[cfg(feature = "manga-list")]
+use list::manga::MangaList;
 
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
+use list::ListType;
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
@@ -53,7 +56,7 @@ use std::convert::Into;
 
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
-pub struct SeriesInfo {
+pub struct AnimeInfo {
     /// The ID of the anime series.
     pub id: u32,
     /// The title of the anime series.
@@ -66,9 +69,33 @@ pub struct SeriesInfo {
     pub end_date: Option<NaiveDate>,
 }
 
-impl PartialEq for SeriesInfo {
+impl PartialEq for AnimeInfo {
     #[inline]
-    fn eq(&self, other: &SeriesInfo) -> bool {
+    fn eq(&self, other: &AnimeInfo) -> bool {
+        self.id == other.id
+    }
+}
+
+/// Represents basic information of a manga series on MyAnimeList.
+#[derive(Debug, Clone)]
+pub struct MangaInfo {
+    /// The ID of the manga series.
+    pub id: u32,
+    /// The title of the anime series.
+    pub title: String,
+    /// The number of chapters in the manga series.
+    pub chapters: u32,
+    /// The number of volumes in the manga series.
+    pub volumes: u32,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
+}
+
+impl PartialEq for MangaInfo {
+    #[inline]
+    fn eq(&self, other: &MangaInfo) -> bool {
         self.id == other.id
     }
 }
@@ -113,19 +140,18 @@ impl MAL {
     /// use mal::MAL;
     ///
     /// let mal = MAL::new("username", "password");
-    /// let found = mal.search("Cowboy Bebop").unwrap();
+    /// let found = mal.search_anime("Cowboy Bebop").unwrap();
     ///
     /// assert!(found.len() > 0);
     /// ```
-    pub fn search(&self, name: &str) -> Result<Vec<SeriesInfo>, Error> {
-        let mut resp = request::auth_get(self, RequestURL::Search(name))?;
+    pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
+        let mut resp = request::auth_get(self, RequestURL::Search(name, ListType::Anime))?;
 
         if resp.status() == StatusCode::NoContent {
             return Ok(Vec::new());
         }
 
         let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
-
         let mut entries = Vec::new();
 
         for child in root.children() {
@@ -134,10 +160,53 @@ impl MAL {
                     .context("failed to parse MAL response")
             };
 
-            let entry = SeriesInfo {
+            let entry = AnimeInfo {
                 id: get_child("id")?.parse()?,
                 title: get_child("title")?,
                 episodes: get_child("episodes")?.parse()?,
+                start_date: util::parse_str_date(&get_child("start_date")?),
+                end_date: util::parse_str_date(&get_child("end_date")?),
+            };
+
+            entries.push(entry);
+        }
+
+        Ok(entries)
+    }
+
+    /// Searches MyAnimeList for a manga and returns all found results.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mal::MAL;
+    ///
+    /// let mal = MAL::new("username", "password");
+    /// let found = mal.search_manga("Bleach").unwrap();
+    ///
+    /// assert!(found.len() > 0);
+    /// ```
+    pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
+        let mut resp = request::auth_get(self, RequestURL::Search(name, ListType::Manga))?;
+
+        if resp.status() == StatusCode::NoContent {
+            return Ok(Vec::new());
+        }
+
+        let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
+        let mut entries = Vec::new();
+
+        for child in root.children() {
+            let get_child = |name| {
+                util::get_xml_child_text(child, name)
+                    .context("failed to parse MAL response")
+            };
+
+            let entry = MangaInfo {
+                id: get_child("id")?.parse()?,
+                title: get_child("title")?,
+                chapters: get_child("chapters")?.parse()?,
+                volumes: get_child("volumes")?.parse()?,
                 start_date: util::parse_str_date(&get_child("start_date")?),
                 end_date: util::parse_str_date(&get_child("end_date")?),
             };
@@ -169,12 +238,21 @@ impl MAL {
         Ok(resp.status() == StatusCode::Ok)
     }
 
-    /// Returns a new [AnimeList] instance to allow operations on the user's list.
+    /// Returns a new [AnimeList] instance to perform operations on the user's anime list.
     /// 
     /// [AnimeList]: ./list/anime/struct.AnimeList.html
-    #[cfg(feature="anime-list")]
+    #[cfg(feature = "anime-list")]
     #[inline]
     pub fn anime_list(&self) -> AnimeList {
         AnimeList::new(self)
+    }
+
+    /// Returns a new [MangaList] instance to perform operations on the user's manga list.
+    /// 
+    /// [MangaList]: ./list/manga/struct.MangaList.html
+    #[cfg(feature = "manga-list")]
+    #[inline]
+    pub fn manga_list(&self) -> MangaList {
+        MangaList::new(self)
     }
 }

@@ -1,21 +1,19 @@
-//! This module handles adding / updating / removing anime to a user's list.
+//! This module handles adding / updating / removing anime to a user's anime list.
 
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
-use request;
-use RequestURL;
-use SeriesInfo;
-use super::{ChangeTracker, List};
+use AnimeInfo;
+use super::{ChangeTracker, List, ListEntry, ListType};
 use util;
 
 /// Used to perform operations on a user's anime list.
-/// 
+///
 /// Note that since the `AnimeList` struct stores a reference to a [MAL] instance,
 /// the [MAL] instance must live as long as the `AnimeList`.
-/// 
-/// [MAL]: ../struct.MAL.html
+///
+/// [MAL]: ../../struct.MAL.html
 #[derive(Debug, Copy, Clone)]
 pub struct AnimeList<'a> {
     /// A reference to the MyAnimeList client used to add and update anime on a user's list.
@@ -25,8 +23,8 @@ pub struct AnimeList<'a> {
 impl<'a> AnimeList<'a> {
     /// Creates a new instance of the `AnimeList` struct and stores the provided [MAL] reference
     /// so authorization can be handled automatically.
-    /// 
-    /// [MAL]: ../struct.MAL.html
+    ///
+    /// [MAL]: ../../struct.MAL.html
     #[inline]
     pub fn new(mal: &'a MAL) -> AnimeList<'a> {
         AnimeList { mal }
@@ -36,215 +34,14 @@ impl<'a> AnimeList<'a> {
 impl<'a> List for AnimeList<'a> {
     type Entry = AnimeEntry;
 
-    /// Requests and parses all entries on the user's anime list.
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::MAL;
-    /// use mal::list::List;
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Read all list entries from the user's list
-    /// let entries = mal.anime_list().read_entries().unwrap();
-    /// 
-    /// assert!(entries.len() > 0);
-    /// ```
-    fn read_entries(&self) -> Result<Vec<AnimeEntry>, Error> {
-        let resp = request::get_verify(&self.mal.client, RequestURL::AnimeList(&self.mal.username))?.text()?;
-        let root: Element = resp.parse().map_err(SyncFailure::new)?;
-
-        let mut entries = Vec::new();
-
-        for child in root.children().skip(1) {
-            let get_child = |name| {
-                util::get_xml_child_text(child, name)
-                    .context("failed to parse MAL response")
-            };
-
-            let info = SeriesInfo {
-                id: get_child("series_animedb_id")?.parse()?,
-                title: get_child("series_title")?,
-                episodes: get_child("series_episodes")?.parse()?,
-                start_date: util::parse_str_date(&get_child("series_start")?),
-                end_date: util::parse_str_date(&get_child("series_end")?),
-            };
-
-            let entry = AnimeEntry {
-                series_info: info,
-                watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
-                start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
-                finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
-                status: WatchStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
-                score: get_child("my_score")?.parse::<u8>()?.into(),
-                rewatching: {
-                    // The rewatching tag is sometimes blank for no apparent reason..
-                    get_child("my_rewatching")?
-                        .parse::<u8>()
-                        .map(|v| v == 1)
-                        .unwrap_or(false)
-                        .into()
-                },
-                tags: parse_tags(&get_child("my_tags")?).into(),
-            };
-
-            entries.push(entry);
-        }
-
-        Ok(entries)
+    #[inline]
+    fn list_type() -> ListType {
+        ListType::Anime
     }
 
-    /// Adds an anime to the user's list.
-    /// 
-    /// If the anime is already on the user's list, nothing will happen.
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Search for "Toradora" on MyAnimeList
-    /// let mut search_results = mal.search("Toradora").unwrap();
-    /// 
-    /// // Use the first result's info
-    /// let toradora_info = search_results.swap_remove(0);
-    /// 
-    /// // Create a new anime list entry with Toradora's info
-    /// let mut entry = AnimeEntry::new(toradora_info);
-    /// 
-    /// // Set the entry's watched episodes to 5 and status to watching
-    /// entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
-    /// 
-    /// // Add the entry to the user's anime list
-    /// mal.anime_list().add(&entry).unwrap();
-    /// ```
     #[inline]
-    fn add(&self, entry: &AnimeEntry) -> Result<(), Error> {
-        let body = entry.generate_xml()?;
-
-        request::auth_post_verify(self.mal,
-            RequestURL::AddAnime(entry.series_info.id),
-            &body)?;
-
-        Ok(())
-    }
-
-    /// Updates the specified anime on the user's list.
-    /// 
-    /// If the anime is already on the user's list, nothing will happen.
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Get a handle to the user's anime list
-    /// let anime_list = mal.anime_list();
-    /// 
-    /// // Get and parse all of the list entries
-    /// let entries = anime_list.read_entries().unwrap();
-    /// 
-    /// // Find Toradora in the list entries
-    /// let mut toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
-    /// 
-    /// // Set new values for the list entry
-    /// // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
-    /// toradora_entry.set_watched_episodes(25)
-    ///               .set_score(10)
-    ///               .set_status(WatchStatus::Completed);
-    /// 
-    /// // Update the anime on the user's list
-    /// anime_list.update(&mut toradora_entry).unwrap();
-    /// 
-    /// assert_eq!(toradora_entry.watched_episodes(), 25);
-    /// assert_eq!(toradora_entry.status(), WatchStatus::Completed);
-    /// assert_eq!(toradora_entry.score(), 10);
-    /// ```
-    #[inline]
-    fn update(&self, entry: &mut AnimeEntry) -> Result<(), Error> {
-        let body = entry.generate_xml()?;
-        
-        request::auth_post_verify(self.mal,
-            RequestURL::UpdateAnime(entry.series_info.id),
-            &body)?;
-
-        entry.reset_changed_status();
-        Ok(())
-    }
-
-    /// Removes an anime from the user's list.
-    /// 
-    /// If the anime isn't already on the user's list, nothing will happen.
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Search for "Toradora" on MyAnimeList
-    /// let mut search_results = mal.search("Toradora").unwrap();
-    /// 
-    /// // Use the first result's info
-    /// let toradora_info = search_results.swap_remove(0);
-    /// 
-    /// // Get a handle to the user's anime list
-    /// let anime_list = mal.anime_list();
-    /// 
-    /// // Get and parse all of the list entries
-    /// let entries = anime_list.read_entries().unwrap();
-    /// 
-    /// // Find Toradora in the list entries
-    /// let toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
-    /// 
-    /// // Delete Toradora from the user's anime list
-    /// anime_list.delete(&toradora_entry).unwrap();
-    /// ```
-    #[inline]
-    fn delete(&self, entry: &AnimeEntry) -> Result<(), Error> {
-        request::auth_delete_verify(self.mal,
-            RequestURL::DeleteAnime(entry.series_info.id))?;
-
-        Ok(())
-    }
-
-    /// Removes an anime from the user's list by its id on MyAnimeList.
-    /// 
-    /// If the anime isn't already on the user's list, nothing will happen.
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
-    /// 
-    /// // Create a new MAL instance
-    /// let mal = MAL::new("username", "password");
-    /// 
-    /// // Delete the anime with the id of 4224 (Toradora) from the user's anime list
-    /// mal.anime_list().delete_id(4224).unwrap();
-    /// ```
-    #[inline]
-    fn delete_id(&self, id: u32) -> Result<(), Error> {
-        request::auth_delete_verify(self.mal, RequestURL::DeleteAnime(id))?;
-        Ok(())
+    fn mal(&self) -> &MAL {
+        self.mal
     }
 }
 
@@ -252,7 +49,7 @@ impl<'a> List for AnimeList<'a> {
 #[derive(Debug, Clone)]
 pub struct AnimeEntry {
     /// The general series information.
-    pub series_info: SeriesInfo,
+    pub series_info: AnimeInfo,
     watched_episodes: ChangeTracker<u32>,
     start_date: ChangeTracker<Option<NaiveDate>>,
     finish_date: ChangeTracker<Option<NaiveDate>>,
@@ -263,31 +60,31 @@ pub struct AnimeEntry {
 }
 
 impl AnimeEntry {
-    /// Creates a new `AnimeEntry` instance with [SeriesInfo] obtained from [MAL].
-    /// 
-    /// [MAL]: ../struct.MAL.html
-    /// [SeriesInfo]: ../struct.SeriesInfo.html
-    /// 
+    /// Creates a new `AnimeEntry` instance with [AnimeInfo] obtained from [MAL].
+    ///
+    /// [MAL]: ../../struct.MAL.html
+    /// [AnimeInfo]: ../../struct.AnimeInfo.html
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
     /// use mal::list::anime::AnimeEntry;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Search for Toradora on MAL
-    /// let mut results = mal.search("Toradora").unwrap();
-    /// 
+    /// let mut results = mal.search_anime("Toradora").unwrap();
+    ///
     /// // Select the first result
     /// let toradora_info = results.swap_remove(0);
-    /// 
+    ///
     /// // Create a new AnimeEntry that represents Toradora with default values
     /// let entry = AnimeEntry::new(toradora_info);
     /// ```
     #[inline]
-    pub fn new(info: SeriesInfo) -> AnimeEntry {
+    pub fn new(info: AnimeInfo) -> AnimeEntry {
         AnimeEntry {
             series_info: info,
             watched_episodes: 0.into(),
@@ -297,53 +94,6 @@ impl AnimeEntry {
             score: 0.into(),
             rewatching: false.into(),
             tags: Vec::new().into(),
-        }
-    }
-
-    fn generate_xml(&self) -> Result<String, Error> {
-        macro_rules! gen_xml {
-            ($entry:ident, $xml_elem:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr),+) => {
-                $(if $entry.$field.changed {
-                    let $val_name = &$entry.$field.value;
-
-                    let mut elem = Element::bare($xml_name);
-                    elem.append_text_node($xml_val);
-                    $xml_elem.append_child(elem);
-                })+
-            };
-        }
-
-        let mut entry = Element::bare("entry");
-
-        gen_xml!(self, entry,
-            watched_episodes(num): "episode" => num.to_string(),
-            status(status): "status" => (*status as i32).to_string(),
-            start_date(date): "date_start" => util::date_to_str(*date),
-            finish_date(date): "date_finish" => util::date_to_str(*date),
-            score(score): "score" => score.to_string(),
-            rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
-            tags(t): "tags" => concat_tags(t)
-        );
-
-        let mut buffer = Vec::new();
-        entry.write_to(&mut buffer).map_err(SyncFailure::new)?;
-
-        Ok(String::from_utf8(buffer)?)
-    }
-
-    fn reset_changed_status(&mut self) {
-        macro_rules! reset {
-            ($($name:ident),+) => ($(self.$name.changed = false;)+);
-        }
-
-        reset! {
-            watched_episodes,
-            start_date,
-            finish_date,
-            status,
-            score,
-            rewatching,
-            tags
         }
     }
 
@@ -441,6 +191,70 @@ impl AnimeEntry {
     }
 }
 
+impl ListEntry for AnimeEntry {
+    fn parse(xml_elem: &Element) -> Result<AnimeEntry, Error> {
+        let get_child =
+            |name| util::get_xml_child_text(xml_elem, name).context("failed to parse MAL response");
+
+        let info = AnimeInfo {
+            id: get_child("series_animedb_id")?.parse()?,
+            title: get_child("series_title")?,
+            episodes: get_child("series_episodes")?.parse()?,
+            start_date: util::parse_str_date(&get_child("series_start")?),
+            end_date: util::parse_str_date(&get_child("series_end")?),
+        };
+
+        let entry = AnimeEntry {
+            series_info: info,
+            watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
+            start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
+            finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
+            status: WatchStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
+            score: get_child("my_score")?.parse::<u8>()?.into(),
+            rewatching: {
+                // The rewatching tag is sometimes blank for no apparent reason..
+                get_child("my_rewatching")?
+                    .parse::<u8>()
+                    .map(|v| v == 1)
+                    .unwrap_or(false)
+                    .into()
+            },
+            tags: super::parse_tags(&get_child("my_tags")?).into(),
+        };
+
+        Ok(entry)
+    }
+
+    fn generate_xml(&self) -> Result<String, Error> {
+        generate_response_xml!(self,
+            watched_episodes(num): "episode" => num.to_string(),
+            status(status): "status" => (*status as i32).to_string(),
+            start_date(date): "date_start" => util::date_to_str(*date),
+            finish_date(date): "date_finish" => util::date_to_str(*date),
+            score(score): "score" => score.to_string(),
+            rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
+            tags(t): "tags" => super::concat_tags(t)
+        )
+    }
+
+    fn reset_changed_fields(&mut self) {
+        reset_changed_fields!(
+            self,
+            watched_episodes,
+            start_date,
+            finish_date,
+            status,
+            score,
+            rewatching,
+            tags
+        );
+    }
+
+    fn id(&self) -> u32 {
+        self.series_info.id
+    }
+}
+
 impl PartialEq for AnimeEntry {
     #[inline]
     fn eq(&self, other: &AnimeEntry) -> bool {
@@ -448,14 +262,7 @@ impl PartialEq for AnimeEntry {
     }
 }
 
-fn parse_tags(tag_str: &str) -> Vec<String> {
-    tag_str.split(',').map(|s| s.to_string()).collect()
-}
-
-fn concat_tags(tags: &[String]) -> String {
-    tags.iter().map(|tag| format!("{},", tag)).collect()
-}
-
+// TODO: use option?
 #[derive(Fail, Debug)]
 #[fail(display = "{} does not map to any WatchStatus enum variants", _0)]
 pub struct InvalidWatchStatus(pub i32);
