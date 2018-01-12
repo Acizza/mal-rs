@@ -3,8 +3,8 @@
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
-use minidom::Element;
 use MangaInfo;
+use minidom::Element;
 use super::{ChangeTracker, List, ListEntry, ListType};
 use util;
 

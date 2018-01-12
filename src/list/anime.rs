@@ -1,10 +1,10 @@
 //! This module handles adding / updating / removing anime to a user's anime list.
 
+use AnimeInfo;
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
-use AnimeInfo;
 use super::{ChangeTracker, List, ListEntry, ListType};
 use util;
 
