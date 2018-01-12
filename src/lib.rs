@@ -5,7 +5,8 @@
 //! 
 //! ```no_run
 //! use mal::{MAL, SeriesInfo};
-//! use mal::list::{AnimeList, AnimeEntry, Status};
+//! use mal::list::List;
+//! use mal::list::anime::{AnimeEntry, Status};
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -42,7 +43,7 @@ extern crate reqwest;
 
 use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
-use list::AnimeList;
+use list::anime::AnimeList;
 use minidom::Element;
 use request::RequestURL;
 use reqwest::StatusCode;
@@ -168,7 +169,7 @@ impl MAL {
 
     /// Returns a new [AnimeList] instance to allow operations on the user's list.
     /// 
-    /// [AnimeList]: ./list/struct.AnimeList.html
+    /// [AnimeList]: ./list/anime/struct.AnimeList.html
     #[inline]
     pub fn anime_list(&self) -> AnimeList {
         AnimeList::new(self)

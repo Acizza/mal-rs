@@ -8,6 +8,7 @@ use request;
 use RequestURL;
 use SeriesInfo;
 use std::fmt::Debug;
+use super::List;
 use util;
 
 /// Used to perform operations on a user's anime list.
@@ -31,6 +32,10 @@ impl<'a> AnimeList<'a> {
     pub fn new(mal: &'a MAL) -> AnimeList<'a> {
         AnimeList { mal }
     }
+}
+
+impl<'a> List for AnimeList<'a> {
+    type Entry = AnimeEntry;
 
     /// Requests and parses all entries on the user's anime list.
     /// 
@@ -38,7 +43,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::AnimeList;
+    /// use mal::list::List;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -48,7 +53,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// assert!(entries.len() > 0);
     /// ```
-    pub fn read_entries(&self) -> Result<Vec<AnimeEntry>, Error> {
+    fn read_entries(&self) -> Result<Vec<AnimeEntry>, Error> {
         let resp = request::get_verify(&self.mal.client, RequestURL::AnimeList(&self.mal.username))?.text()?;
         let root: Element = resp.parse().map_err(SyncFailure::new)?;
 
@@ -100,7 +105,8 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, AnimeEntry, Status};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -121,7 +127,7 @@ impl<'a> AnimeList<'a> {
     /// mal.anime_list().add(&entry).unwrap();
     /// ```
     #[inline]
-    pub fn add(&self, entry: &AnimeEntry) -> Result<(), Error> {
+    fn add(&self, entry: &AnimeEntry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
 
         request::auth_post_verify(self.mal,
@@ -139,7 +145,8 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, AnimeEntry, Status};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -167,7 +174,7 @@ impl<'a> AnimeList<'a> {
     /// assert_eq!(toradora_entry.score(), 10);
     /// ```
     #[inline]
-    pub fn update(&self, entry: &mut AnimeEntry) -> Result<(), Error> {
+    fn update(&self, entry: &mut AnimeEntry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
         
         request::auth_post_verify(self.mal,
@@ -186,7 +193,8 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, AnimeEntry, Status};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -210,7 +218,7 @@ impl<'a> AnimeList<'a> {
     /// anime_list.delete(&toradora_entry).unwrap();
     /// ```
     #[inline]
-    pub fn delete(&self, entry: &AnimeEntry) -> Result<(), Error> {
+    fn delete(&self, entry: &AnimeEntry) -> Result<(), Error> {
         request::auth_delete_verify(self.mal,
             RequestURL::DeleteAnime(entry.series_info.id))?;
 
@@ -225,7 +233,8 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, AnimeEntry, Status};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -234,7 +243,7 @@ impl<'a> AnimeList<'a> {
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
     #[inline]
-    pub fn delete_id(&self, id: u32) -> Result<(), Error> {
+    fn delete_id(&self, id: u32) -> Result<(), Error> {
         request::auth_delete_verify(self.mal, RequestURL::DeleteAnime(id))?;
         Ok(())
     }
@@ -290,7 +299,7 @@ impl AnimeEntry {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::AnimeEntry;
+    /// use mal::list::anime::AnimeEntry;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -497,7 +506,7 @@ impl Status {
     /// # Example
     ///
     /// ```
-    /// use mal::list::Status;
+    /// use mal::list::anime::Status;
     ///
     /// let status = Status::from_i32(1).unwrap();
     /// assert_eq!(status, Status::Watching);
