@@ -100,15 +100,16 @@ pub trait List {
     /// entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
     /// 
     /// // Add the entry to the user's anime list
-    /// mal.anime_list().add(&entry).unwrap();
+    /// mal.anime_list().add(&mut entry).unwrap();
     /// ```
-    fn add(&self, entry: &Self::Entry) -> Result<(), Error> {
+    fn add(&self, entry: &mut Self::Entry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
 
         request::auth_post_verify(self.mal(),
             RequestURL::Add(entry.id(), Self::list_type()),
             &body)?;
 
+        entry.reset_changed_fields();
         Ok(())
     }
 

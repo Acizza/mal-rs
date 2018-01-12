@@ -24,7 +24,7 @@
 //! entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
 //! 
 //! // Add the entry to the user's anime list
-//! mal.anime_list().add(&entry).unwrap();
+//! mal.anime_list().add(&mut entry).unwrap();
 //! ```
 
 #[macro_use]
