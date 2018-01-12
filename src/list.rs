@@ -23,7 +23,12 @@ pub struct AnimeList<'a> {
 }
 
 impl<'a> AnimeList<'a> {
-    pub(crate) fn new(mal: &'a MAL) -> AnimeList<'a> {
+    /// Creates a new instance of the `AnimeList` struct and stores the provided [MAL] reference
+    /// so authorization can be handled automatically.
+    /// 
+    /// [MAL]: ../struct.MAL.html
+    #[inline]
+    pub fn new(mal: &'a MAL) -> AnimeList<'a> {
         AnimeList { mal }
     }
 
