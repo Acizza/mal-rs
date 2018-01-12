@@ -7,8 +7,7 @@ use minidom::Element;
 use request;
 use RequestURL;
 use SeriesInfo;
-use std::fmt::Debug;
-use super::List;
+use super::{ChangeTracker, List};
 use util;
 
 /// Used to perform operations on a user's anime list.
@@ -246,32 +245,6 @@ impl<'a> List for AnimeList<'a> {
     fn delete_id(&self, id: u32) -> Result<(), Error> {
         request::auth_delete_verify(self.mal, RequestURL::DeleteAnime(id))?;
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ChangeTracker<T: Debug + Clone> {
-    value: T,
-    changed: bool,
-}
-
-impl<T: Debug + Clone> ChangeTracker<T> {
-    fn new(value: T) -> ChangeTracker<T> {
-        ChangeTracker {
-            value,
-            changed: false,
-        }
-    }
-
-    fn set(&mut self, value: T) {
-        self.value = value;
-        self.changed = true;
-    }
-}
-
-impl<T: Debug + Clone> From<T> for ChangeTracker<T> {
-    fn from(value: T) -> Self {
-        ChangeTracker::new(value)
     }
 }
 
