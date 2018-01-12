@@ -48,7 +48,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// assert!(entries.len() > 0);
     /// ```
-    pub fn read_entries(&self) -> Result<Vec<ListEntry>, Error> {
+    pub fn read_entries(&self) -> Result<Vec<AnimeEntry>, Error> {
         let resp = request::get_verify(&self.mal.client, RequestURL::AnimeList(&self.mal.username))?.text()?;
         let root: Element = resp.parse().map_err(SyncFailure::new)?;
 
@@ -68,7 +68,7 @@ impl<'a> AnimeList<'a> {
                 end_date: util::parse_str_date(&get_child("series_end")?),
             };
 
-            let entry = ListEntry {
+            let entry = AnimeEntry {
                 series_info: info,
                 watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
                 start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
@@ -100,7 +100,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// use mal::list::{AnimeList, AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -112,7 +112,7 @@ impl<'a> AnimeList<'a> {
     /// let toradora_info = search_results.swap_remove(0);
     /// 
     /// // Create a new anime list entry with Toradora's info
-    /// let mut entry = ListEntry::new(toradora_info);
+    /// let mut entry = AnimeEntry::new(toradora_info);
     /// 
     /// // Set the entry's watched episodes to 5 and status to watching
     /// entry.set_watched_episodes(5).set_status(Status::Watching);
@@ -121,7 +121,7 @@ impl<'a> AnimeList<'a> {
     /// mal.anime_list().add(&entry).unwrap();
     /// ```
     #[inline]
-    pub fn add(&self, entry: &ListEntry) -> Result<(), Error> {
+    pub fn add(&self, entry: &AnimeEntry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
 
         request::auth_post_verify(self.mal,
@@ -139,7 +139,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// use mal::list::{AnimeList, AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -167,7 +167,7 @@ impl<'a> AnimeList<'a> {
     /// assert_eq!(toradora_entry.score(), 10);
     /// ```
     #[inline]
-    pub fn update(&self, entry: &mut ListEntry) -> Result<(), Error> {
+    pub fn update(&self, entry: &mut AnimeEntry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
         
         request::auth_post_verify(self.mal,
@@ -186,7 +186,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// use mal::list::{AnimeList, AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -210,7 +210,7 @@ impl<'a> AnimeList<'a> {
     /// anime_list.delete(&toradora_entry).unwrap();
     /// ```
     #[inline]
-    pub fn delete(&self, entry: &ListEntry) -> Result<(), Error> {
+    pub fn delete(&self, entry: &AnimeEntry) -> Result<(), Error> {
         request::auth_delete_verify(self.mal,
             RequestURL::DeleteAnime(entry.series_info.id))?;
 
@@ -225,7 +225,7 @@ impl<'a> AnimeList<'a> {
     /// 
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
-    /// use mal::list::{AnimeList, ListEntry, Status};
+    /// use mal::list::{AnimeList, AnimeEntry, Status};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -268,7 +268,7 @@ impl<T: Debug + Clone> From<T> for ChangeTracker<T> {
 
 /// Represents information about an anime series on a user's list.
 #[derive(Debug, Clone)]
-pub struct ListEntry {
+pub struct AnimeEntry {
     /// The general series information.
     pub series_info: SeriesInfo,
     watched_episodes: ChangeTracker<u32>,
@@ -280,8 +280,8 @@ pub struct ListEntry {
     tags: ChangeTracker<Vec<String>>,
 }
 
-impl ListEntry {
-    /// Creates a new `ListEntry` instance with [SeriesInfo] obtained from [MAL].
+impl AnimeEntry {
+    /// Creates a new `AnimeEntry` instance with [SeriesInfo] obtained from [MAL].
     /// 
     /// [MAL]: ../struct.MAL.html
     /// [SeriesInfo]: ../struct.SeriesInfo.html
@@ -290,7 +290,7 @@ impl ListEntry {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::ListEntry;
+    /// use mal::list::AnimeEntry;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -301,12 +301,12 @@ impl ListEntry {
     /// // Select the first result
     /// let toradora_info = results.swap_remove(0);
     /// 
-    /// // Create a new ListEntry that represents Toradora with default values
-    /// let entry = ListEntry::new(toradora_info);
+    /// // Create a new AnimeEntry that represents Toradora with default values
+    /// let entry = AnimeEntry::new(toradora_info);
     /// ```
     #[inline]
-    pub fn new(info: SeriesInfo) -> ListEntry {
-        ListEntry {
+    pub fn new(info: SeriesInfo) -> AnimeEntry {
+        AnimeEntry {
             series_info: info,
             watched_episodes: 0.into(),
             start_date: None.into(),
@@ -373,7 +373,7 @@ impl ListEntry {
 
     /// Sets the watched episode count.
     #[inline]
-    pub fn set_watched_episodes(&mut self, watched: u32) -> &mut ListEntry {
+    pub fn set_watched_episodes(&mut self, watched: u32) -> &mut AnimeEntry {
         self.watched_episodes.set(watched);
         self
     }
@@ -386,7 +386,7 @@ impl ListEntry {
 
     /// Sets the date the user started watching the anime.
     #[inline]
-    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut ListEntry {
+    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut AnimeEntry {
         self.start_date.set(date);
         self
     }
@@ -399,7 +399,7 @@ impl ListEntry {
 
     /// Sets the date the user finished watching the anime.
     #[inline]
-    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut ListEntry {
+    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut AnimeEntry {
         self.finish_date.set(date);
         self
     }
@@ -412,7 +412,7 @@ impl ListEntry {
 
     /// Sets the current watch status for the anime.
     #[inline]
-    pub fn set_status(&mut self, status: Status) -> &mut ListEntry {
+    pub fn set_status(&mut self, status: Status) -> &mut AnimeEntry {
         self.status.set(status);
         self
     }
@@ -425,7 +425,7 @@ impl ListEntry {
 
     /// Sets the user's score for the anime.
     #[inline]
-    pub fn set_score(&mut self, score: u8) -> &mut ListEntry {
+    pub fn set_score(&mut self, score: u8) -> &mut AnimeEntry {
         self.score.set(score);
         self
     }
@@ -438,7 +438,7 @@ impl ListEntry {
 
     /// Sets whether or not the user is currently rewatching the anime.
     #[inline]
-    pub fn set_rewatching(&mut self, rewatching: bool) -> &mut ListEntry {
+    pub fn set_rewatching(&mut self, rewatching: bool) -> &mut AnimeEntry {
         self.rewatching.set(rewatching);
         self
     }
@@ -459,9 +459,9 @@ impl ListEntry {
     }
 }
 
-impl PartialEq for ListEntry {
+impl PartialEq for AnimeEntry {
     #[inline]
-    fn eq(&self, other: &ListEntry) -> bool {
+    fn eq(&self, other: &AnimeEntry) -> bool {
         self.series_info == other.series_info
     }
 }
