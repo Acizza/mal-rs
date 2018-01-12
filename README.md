@@ -9,8 +9,9 @@ The following will update an existing anime on a user's list, but the code to ad
 ```rust
 extern crate mal;
 
-use mal::{MAL, SeriesInfo};
-use mal::list::{AnimeList, ListEntry, Status};
+use mal::MAL;
+use mal::list::List;
+use mal::list::anime::WatchStatus;
 
 fn main() {
     // Create a new MAL instance
@@ -29,7 +30,7 @@ fn main() {
     // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
     toradora_entry.set_watched_episodes(25)
                 .set_score(10)
-                .set_status(Status::Completed);
+                .set_status(WatchStatus::Completed);
 
     // Update the anime on the user's list
     anime_list.update(&mut toradora_entry).unwrap();
