@@ -6,7 +6,7 @@
 //! ```no_run
 //! use mal::{MAL, SeriesInfo};
 //! use mal::list::List;
-//! use mal::list::anime::{AnimeEntry, Status};
+//! use mal::list::anime::{AnimeEntry, WatchStatus};
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -21,7 +21,7 @@
 //! let mut entry = AnimeEntry::new(toradora_info);
 //! 
 //! // Set the entry's watched episodes to 5 and status to watching
-//! entry.set_watched_episodes(5).set_status(Status::Watching);
+//! entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
 //! 
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&entry).unwrap();

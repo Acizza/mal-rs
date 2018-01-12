@@ -78,7 +78,7 @@ impl<'a> List for AnimeList<'a> {
                 watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
                 start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
                 finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
-                status: Status::from_i32(get_child("my_status")?.parse()?)?.into(),
+                status: WatchStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
                 score: get_child("my_score")?.parse::<u8>()?.into(),
                 rewatching: {
                     // The rewatching tag is sometimes blank for no apparent reason..
@@ -106,7 +106,7 @@ impl<'a> List for AnimeList<'a> {
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
     /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, Status};
+    /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -121,7 +121,7 @@ impl<'a> List for AnimeList<'a> {
     /// let mut entry = AnimeEntry::new(toradora_info);
     /// 
     /// // Set the entry's watched episodes to 5 and status to watching
-    /// entry.set_watched_episodes(5).set_status(Status::Watching);
+    /// entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
     /// 
     /// // Add the entry to the user's anime list
     /// mal.anime_list().add(&entry).unwrap();
@@ -146,7 +146,7 @@ impl<'a> List for AnimeList<'a> {
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
     /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, Status};
+    /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -164,13 +164,13 @@ impl<'a> List for AnimeList<'a> {
     /// // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
     /// toradora_entry.set_watched_episodes(25)
     ///               .set_score(10)
-    ///               .set_status(Status::Completed);
+    ///               .set_status(WatchStatus::Completed);
     /// 
     /// // Update the anime on the user's list
     /// anime_list.update(&mut toradora_entry).unwrap();
     /// 
     /// assert_eq!(toradora_entry.watched_episodes(), 25);
-    /// assert_eq!(toradora_entry.status(), Status::Completed);
+    /// assert_eq!(toradora_entry.status(), WatchStatus::Completed);
     /// assert_eq!(toradora_entry.score(), 10);
     /// ```
     #[inline]
@@ -194,7 +194,7 @@ impl<'a> List for AnimeList<'a> {
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
     /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, Status};
+    /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -234,7 +234,7 @@ impl<'a> List for AnimeList<'a> {
     /// ```no_run
     /// use mal::{MAL, SeriesInfo};
     /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, Status};
+    /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -283,7 +283,7 @@ pub struct AnimeEntry {
     watched_episodes: ChangeTracker<u32>,
     start_date: ChangeTracker<Option<NaiveDate>>,
     finish_date: ChangeTracker<Option<NaiveDate>>,
-    status: ChangeTracker<Status>,
+    status: ChangeTracker<WatchStatus>,
     score: ChangeTracker<u8>,
     rewatching: ChangeTracker<bool>,
     tags: ChangeTracker<Vec<String>>,
@@ -320,7 +320,7 @@ impl AnimeEntry {
             watched_episodes: 0.into(),
             start_date: None.into(),
             finish_date: None.into(),
-            status: Status::default().into(),
+            status: WatchStatus::default().into(),
             score: 0.into(),
             rewatching: false.into(),
             tags: Vec::new().into(),
@@ -415,13 +415,13 @@ impl AnimeEntry {
 
     /// Returns the current watch status of the anime.
     #[inline]
-    pub fn status(&self) -> Status {
+    pub fn status(&self) -> WatchStatus {
         self.status.value
     }
 
     /// Sets the current watch status for the anime.
     #[inline]
-    pub fn set_status(&mut self, status: Status) -> &mut AnimeEntry {
+    pub fn set_status(&mut self, status: WatchStatus) -> &mut AnimeEntry {
         self.status.set(status);
         self
     }
@@ -484,12 +484,12 @@ fn concat_tags(tags: &[String]) -> String {
 }
 
 #[derive(Fail, Debug)]
-#[fail(display = "{} does not map to any Status enum variants", _0)]
-pub struct InvalidStatus(pub i32);
+#[fail(display = "{} does not map to any WatchStatus enum variants", _0)]
+pub struct InvalidWatchStatus(pub i32);
 
 /// Represents the watch status of an anime on a user's list.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Status {
+pub enum WatchStatus {
     Watching = 1,
     Completed,
     OnHold,
@@ -497,36 +497,36 @@ pub enum Status {
     PlanToWatch = 6,
 }
 
-impl Status {
-    /// Attempts to convert an i32 to a `Status`.
+impl WatchStatus {
+    /// Attempts to convert an i32 to a `WatchStatus`.
     ///
-    /// Note that the i32 value of each `Status` variant is mapped
+    /// Note that the i32 value of each `WatchStatus` variant is mapped
     /// to the one provided by the MyAnimeList API, so they do not increment naturally.
     ///
     /// # Example
     ///
     /// ```
-    /// use mal::list::anime::Status;
+    /// use mal::list::anime::WatchStatus;
     ///
-    /// let status = Status::from_i32(1).unwrap();
-    /// assert_eq!(status, Status::Watching);
+    /// let status = WatchStatus::from_i32(1).unwrap();
+    /// assert_eq!(status, WatchStatus::Watching);
     /// ```
     #[inline]
-    pub fn from_i32(value: i32) -> Result<Status, InvalidStatus> {
+    pub fn from_i32(value: i32) -> Result<WatchStatus, InvalidWatchStatus> {
         match value {
-            1 => Ok(Status::Watching),
-            2 => Ok(Status::Completed),
-            3 => Ok(Status::OnHold),
-            4 => Ok(Status::Dropped),
-            6 => Ok(Status::PlanToWatch),
-            i => Err(InvalidStatus(i)),
+            1 => Ok(WatchStatus::Watching),
+            2 => Ok(WatchStatus::Completed),
+            3 => Ok(WatchStatus::OnHold),
+            4 => Ok(WatchStatus::Dropped),
+            6 => Ok(WatchStatus::PlanToWatch),
+            i => Err(InvalidWatchStatus(i)),
         }
     }
 }
 
-impl Default for Status {
+impl Default for WatchStatus {
     #[inline]
     fn default() -> Self {
-        Status::PlanToWatch
+        WatchStatus::PlanToWatch
     }
 }
