@@ -45,6 +45,11 @@ impl<'a> List for MangaList<'a> {
     }
 }
 
+#[derive(Fail, Debug)]
+pub enum MangaEntryError {
+    #[fail(display = "{} is not a known read status", _0)] UnknownReadStatus(i32),
+}
+
 #[derive(Debug, Clone)]
 pub struct MangaEntry {
     /// The general series information.
@@ -229,7 +234,13 @@ impl ListEntry for MangaEntry {
             last_updated_time: Utc.timestamp(get_child("my_last_updated")?.parse()?, 0),
             chapter: get_child("my_read_chapters")?.parse::<u32>()?.into(),
             volume: get_child("my_read_volumes")?.parse::<u32>()?.into(),
-            status: ReadStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
+            status: {
+                let status_num = get_child("my_status")?.parse()?;
+
+                ReadStatus::from_i32(status_num)
+                    .ok_or_else(|| MangaEntryError::UnknownReadStatus(status_num))?
+                    .into()
+            },
             score: get_child("my_score")?.parse::<u8>()?.into(),
             start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
             finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
@@ -286,10 +297,6 @@ impl ListEntry for MangaEntry {
     }
 }
 
-#[derive(Fail, Debug)]
-#[fail(display = "{} does not map to any ReadStatus enum variants", _0)]
-pub struct InvalidReadStatus(pub i32);
-
 /// Represents the read status of a manga on the user's list.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ReadStatus {
@@ -315,14 +322,14 @@ impl ReadStatus {
     /// assert_eq!(status, ReadStatus::Reading);
     /// ```
     #[inline]
-    pub fn from_i32(value: i32) -> Result<ReadStatus, InvalidReadStatus> {
+    pub fn from_i32(value: i32) -> Option<ReadStatus> {
         match value {
-            1 => Ok(ReadStatus::Reading),
-            2 => Ok(ReadStatus::Completed),
-            3 => Ok(ReadStatus::OnHold),
-            4 => Ok(ReadStatus::Dropped),
-            6 => Ok(ReadStatus::PlanToRead),
-            i => Err(InvalidReadStatus(i)),
+            1 => Some(ReadStatus::Reading),
+            2 => Some(ReadStatus::Completed),
+            3 => Some(ReadStatus::OnHold),
+            4 => Some(ReadStatus::Dropped),
+            6 => Some(ReadStatus::PlanToRead),
+            _ => None,
         }
     }
 }

@@ -45,6 +45,11 @@ impl<'a> List for AnimeList<'a> {
     }
 }
 
+#[derive(Fail, Debug)]
+pub enum AnimeEntryError {
+    #[fail(display = "{} is not a known watch status", _0)] UnknownWatchStatus(i32),
+}
+
 /// Represents information about an anime series on a user's list.
 #[derive(Debug, Clone)]
 pub struct AnimeEntry {
@@ -215,7 +220,13 @@ impl ListEntry for AnimeEntry {
             watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
             start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
             finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
-            status: WatchStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
+            status: {
+                let status_num = get_child("my_status")?.parse()?;
+
+                WatchStatus::from_i32(status_num)
+                    .ok_or_else(|| AnimeEntryError::UnknownWatchStatus(status_num))?
+                    .into()
+            },
             score: get_child("my_score")?.parse::<u8>()?.into(),
             rewatching: {
                 // The rewatching tag is sometimes blank for no apparent reason..
@@ -275,11 +286,6 @@ impl PartialEq for AnimeEntry {
     }
 }
 
-// TODO: use option?
-#[derive(Fail, Debug)]
-#[fail(display = "{} does not map to any WatchStatus enum variants", _0)]
-pub struct InvalidWatchStatus(pub i32);
-
 /// Represents the watch status of an anime on a user's list.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum WatchStatus {
@@ -305,14 +311,14 @@ impl WatchStatus {
     /// assert_eq!(status, WatchStatus::Watching);
     /// ```
     #[inline]
-    pub fn from_i32(value: i32) -> Result<WatchStatus, InvalidWatchStatus> {
+    pub fn from_i32(value: i32) -> Option<WatchStatus> {
         match value {
-            1 => Ok(WatchStatus::Watching),
-            2 => Ok(WatchStatus::Completed),
-            3 => Ok(WatchStatus::OnHold),
-            4 => Ok(WatchStatus::Dropped),
-            6 => Ok(WatchStatus::PlanToWatch),
-            i => Err(InvalidWatchStatus(i)),
+            1 => Some(WatchStatus::Watching),
+            2 => Some(WatchStatus::Completed),
+            3 => Some(WatchStatus::OnHold),
+            4 => Some(WatchStatus::Dropped),
+            6 => Some(WatchStatus::PlanToWatch),
+            _ => None,
         }
     }
 }
