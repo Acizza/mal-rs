@@ -1,7 +1,7 @@
 use failure::{Error, SyncFailure};
 use MAL;
 use minidom::Element;
-use request::{self, RequestURL};
+use request::Request;
 use std::fmt::Debug;
 
 macro_rules! generate_response_xml {
@@ -59,8 +59,9 @@ pub trait List {
     /// let entries = mal.anime_list().read_entries().unwrap();
     /// ```
     fn read_entries(&self) -> Result<Vec<Self::Entry>, Error> {
-        let req_type = RequestURL::List(&self.mal().username, Self::list_type());
-        let resp = request::get_verify(&self.mal().client, req_type)?.text()?;
+        let resp = Request::List(&self.mal().username, Self::list_type())
+            .send(self.mal())?
+            .text()?;
 
         let root: Element = resp.parse().map_err(SyncFailure::new)?;
         let mut entries = Vec::new();
@@ -104,10 +105,9 @@ pub trait List {
     /// ```
     fn add(&self, entry: &mut Self::Entry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
-
-        request::auth_post_verify(self.mal(),
-            RequestURL::Add(entry.id(), Self::list_type()),
-            &body)?;
+        
+        Request::Add(entry.id(), Self::list_type(), &body)
+            .send(self.mal())?;
 
         entry.set_last_updated_time();
         entry.reset_changed_fields();
@@ -150,9 +150,8 @@ pub trait List {
     fn update(&self, entry: &mut Self::Entry) -> Result<(), Error> {
         let body = entry.generate_xml()?;
 
-        request::auth_post_verify(self.mal(),
-            RequestURL::Update(entry.id(), Self::list_type()),
-            &body)?;
+        Request::Update(entry.id(), Self::list_type(), &body)
+            .send(self.mal())?;
 
         entry.set_last_updated_time();
         entry.reset_changed_fields();
@@ -193,8 +192,8 @@ pub trait List {
     /// anime_list.delete(&toradora_entry).unwrap();
     /// ```
     fn delete(&self, entry: &Self::Entry) -> Result<(), Error> {
-        request::auth_delete_verify(self.mal(),
-            RequestURL::Delete(entry.id(), Self::list_type()))?;
+        Request::Delete(entry.id(), Self::list_type())
+            .send(self.mal())?;
 
         Ok(())
     }
@@ -217,7 +216,9 @@ pub trait List {
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
     fn delete_id(&self, id: u32) -> Result<(), Error> {
-        request::auth_delete_verify(self.mal(), RequestURL::Delete(id, Self::list_type()))?;
+        Request::Delete(id, Self::list_type())
+            .send(self.mal())?;
+        
         Ok(())
     }
 

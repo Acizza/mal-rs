@@ -50,7 +50,7 @@ use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use list::ListType;
 use minidom::Element;
-use request::RequestURL;
+use request::Request;
 use reqwest::StatusCode;
 use std::convert::Into;
 
@@ -153,7 +153,7 @@ impl MAL {
     /// assert!(found.len() > 0);
     /// ```
     pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
-        let mut resp = request::auth_get(self, RequestURL::Search(name, ListType::Anime))?;
+        let mut resp = Request::Search(name, ListType::Anime).send(self)?;
 
         if resp.status() == StatusCode::NoContent {
             return Ok(Vec::new());
@@ -197,8 +197,8 @@ impl MAL {
     /// assert!(found.len() > 0);
     /// ```
     pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
-        let mut resp = request::auth_get(self, RequestURL::Search(name, ListType::Manga))?;
-
+        let mut resp = Request::Search(name, ListType::Manga).send(self)?;
+        
         if resp.status() == StatusCode::NoContent {
             return Ok(Vec::new());
         }
@@ -246,7 +246,7 @@ impl MAL {
     /// ```
     #[inline]
     pub fn verify_credentials(&self) -> Result<bool, Error> {
-        let resp = request::auth_get(self, RequestURL::VerifyCredentials)?;
+        let resp = Request::VerifyCredentials.send(self)?;
         Ok(resp.status() == StatusCode::Ok)
     }
 

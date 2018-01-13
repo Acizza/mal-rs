@@ -1,35 +1,46 @@
 use failure::Error;
 use list::ListType;
 use MAL;
-use reqwest::{Client, RequestBuilder, Response, StatusCode, Url};
+use reqwest::{RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
 
 pub type ID = u32;
+pub type Username<'a> = &'a str;
+pub type Name<'a> = &'a str;
+pub type Body<'a> = &'a str;
 
 #[derive(Debug)]
-pub enum RequestURL<'a> {
-    List(&'a str, ListType),
-    Search(&'a str, ListType),
-    Add(ID, ListType),
-    Update(ID, ListType),
+pub enum Request<'a> {
+    Search(Name<'a>, ListType),
+    List(Username<'a>, ListType),
+    Add(ID, ListType, Body<'a>),
+    Update(ID, ListType, Body<'a>),
     Delete(ID, ListType),
     VerifyCredentials,
 }
 
-impl<'a> RequestURL<'a> {
+impl<'a> Request<'a> {
     pub const BASE_URL: &'static str = "https://myanimelist.net";
-}
 
-impl<'a> Into<Url> for RequestURL<'a> {
-    fn into(self) -> Url {
+    pub fn send(self, mal: &MAL) -> Result<Response, Error> {
         lazy_static! {
-            static ref BASE_URL: Url = Url::parse(RequestURL::BASE_URL).unwrap();
+            static ref BASE_URL: Url = Url::parse(Request::BASE_URL).unwrap();
         }
 
         let mut url = BASE_URL.clone();
+        use self::Request::*;
 
         match self {
-            RequestURL::List(uname, list_type) => {
+            Search(name, list_type) => {
+                match list_type {
+                    ListType::Anime => url.set_path("/api/anime/search.xml"),
+                    ListType::Manga => url.set_path("/api/manga/search.xml"),
+                }
+
+                url.query_pairs_mut().append_pair("q", name);
+                Ok(mal.client.get(url).with_auth(mal).send()?)
+            }
+            List(uname, list_type) => {
                 url.set_path("/malappinfo.php");
 
                 let query = match list_type {
@@ -41,110 +52,89 @@ impl<'a> Into<Url> for RequestURL<'a> {
                     .append_pair("u", uname)
                     .append_pair("status", "all")
                     .append_pair("type", query);
+
+                Ok(mal.client.get(url).send()?.verify_status()?)
             }
-            RequestURL::Search(name, ListType::Anime) => {
-                url.set_path("/api/anime/search.xml");
-                url.query_pairs_mut().append_pair("q", name);
+            Add(id, list_type, body) => {
+                match list_type {
+                    ListType::Anime => url.set_path(&format!("/api/animelist/add/{}.xml", id)),
+                    ListType::Manga => url.set_path(&format!("/api/mangalist/add/{}.xml", id)),
+                }
+
+                Ok(mal.client
+                    .post(url)
+                    .with_body(body)
+                    .with_auth(mal)
+                    .send()?
+                    .verify_status()?)
             }
-            RequestURL::Search(name, ListType::Manga) => {
-                url.set_path("/api/manga/search.xml");
-                url.query_pairs_mut().append_pair("q", name);
+            Update(id, list_type, body) => {
+                match list_type {
+                    ListType::Anime => url.set_path(&format!("/api/animelist/update/{}.xml", id)),
+                    ListType::Manga => url.set_path(&format!("/api/mangalist/update/{}.xml", id)),
+                }
+
+                Ok(mal.client
+                    .post(url)
+                    .with_body(body)
+                    .with_auth(mal)
+                    .send()?
+                    .verify_status()?)
             }
-            RequestURL::Add(id, ListType::Anime) => {
-                url.set_path(&format!("/api/animelist/add/{}.xml", id));
+            Delete(id, list_type) => {
+                match list_type {
+                    ListType::Anime => url.set_path(&format!("/api/animelist/delete/{}.xml", id)),
+                    ListType::Manga => url.set_path(&format!("/api/mangalist/delete/{}.xml", id)),
+                }
+
+                Ok(mal.client
+                    .delete(url)
+                    .with_auth(mal)
+                    .send()?
+                    .verify_status()?)
             }
-            RequestURL::Add(id, ListType::Manga) => {
-                url.set_path(&format!("/api/mangalist/add/{}.xml", id));
-            }
-            RequestURL::Update(id, ListType::Anime) => {
-                url.set_path(&format!("/api/animelist/update/{}.xml", id));
-            }
-            RequestURL::Update(id, ListType::Manga) => {
-                url.set_path(&format!("/api/mangalist/update/{}.xml", id));
-            }
-            RequestURL::Delete(id, ListType::Anime) => {
-                url.set_path(&format!("/api/animelist/delete/{}.xml", id));
-            }
-            RequestURL::Delete(id, ListType::Manga) => {
-                url.set_path(&format!("/api/mangalist/delete/{}.xml", id));
-            }
-            RequestURL::VerifyCredentials => {
+            VerifyCredentials => {
                 url.set_path("/api/account/verify_credentials.xml");
+                Ok(mal.client.get(url).with_auth(mal).send()?)
             }
         }
-
-        url
     }
 }
 
-pub fn get(client: &Client, req_type: RequestURL) -> Result<Response, Error> {
-    let url: Url = req_type.into();
-    Ok(client.get(url).send()?)
+trait RequestExt {
+    fn with_auth(&mut self, mal: &MAL) -> &mut RequestBuilder;
+    fn with_body(&mut self, body: &str) -> &mut RequestBuilder;
 }
 
-pub fn get_verify(client: &Client, req_type: RequestURL) -> Result<Response, Error> {
-    let resp = get(client, req_type)?;
-    verify_good_response(&resp)?;
+impl RequestExt for RequestBuilder {
+    fn with_auth(&mut self, mal: &MAL) -> &mut RequestBuilder {
+        self.basic_auth(mal.username.clone(), Some(mal.password.clone()))
+    }
 
-    Ok(resp)
+    fn with_body(&mut self, body: &str) -> &mut RequestBuilder {
+        let mut headers = Headers::new();
+        headers.set(ContentType::form_url_encoded());
+
+        self.body(format!("data={}", body)).headers(headers)
+    }
 }
 
-pub fn auth_get(mal: &MAL, req_type: RequestURL) -> Result<Response, Error> {
-    let url: Url = req_type.into();
-    send_auth_req(mal, &mut mal.client.get(url))
-}
-
-pub fn auth_post(mal: &MAL, req_type: RequestURL, body: &str) -> Result<Response, Error> {
-    let mut headers = Headers::new();
-    headers.set(ContentType::form_url_encoded());
-
-    let url: Url = req_type.into();
-
-    send_auth_req(
-        mal,
-        mal.client
-            .post(url)
-            .body(format!("data={}", body))
-            .headers(headers),
-    )
-}
-
-pub fn auth_post_verify(mal: &MAL, req_type: RequestURL, body: &str) -> Result<Response, Error> {
-    let resp = auth_post(mal, req_type, body)?;
-    verify_good_response(&resp)?;
-
-    Ok(resp)
-}
-
-pub fn auth_delete(mal: &MAL, req_type: RequestURL) -> Result<Response, Error> {
-    let url: Url = req_type.into();
-    send_auth_req(mal, &mut mal.client.delete(url))
-}
-
-pub fn auth_delete_verify(mal: &MAL, req_type: RequestURL) -> Result<Response, Error> {
-    let resp = auth_delete(mal, req_type)?;
-    verify_good_response(&resp)?;
-
-    Ok(resp)
-}
-
-fn send_auth_req(mal: &MAL, req: &mut RequestBuilder) -> Result<Response, Error> {
-    let resp = req.basic_auth(mal.username.clone(), Some(mal.password.clone()))
-        .send()?;
-
-    Ok(resp)
+trait ResponseExt {
+    fn verify_status(self) -> Result<Response, BadResponse>;
 }
 
 #[derive(Fail, Debug)]
 #[fail(display = "received bad response from MAL: {} {}", _0, _1)]
 pub struct BadResponse(pub u16, pub String);
 
-pub fn verify_good_response(resp: &Response) -> Result<(), BadResponse> {
-    match resp.status() {
-        StatusCode::Ok | StatusCode::Created => Ok(()),
-        status => {
-            let reason = status.canonical_reason().unwrap_or("Unknown Error").into();
-            Err(BadResponse(status.as_u16(), reason))
+impl ResponseExt for Response {
+    fn verify_status(self) -> Result<Response, BadResponse> {
+        match self.status() {
+            StatusCode::Ok | StatusCode::Created => Ok(self),
+            status => {
+                let reason = status.canonical_reason().unwrap_or("Unknown Error").into();
+                Err(BadResponse(status.as_u16(), reason))
+            }
         }
     }
 }
