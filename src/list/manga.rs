@@ -220,6 +220,7 @@ impl ListEntry for MangaEntry {
             volumes: get_child("series_volumes")?.parse()?,
             start_date: util::parse_str_date(&get_child("series_start")?),
             end_date: util::parse_str_date(&get_child("series_end")?),
+            image_url: get_child("series_image")?,
         };
 
         let entry = MangaEntry {

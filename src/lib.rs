@@ -67,6 +67,8 @@ pub struct AnimeInfo {
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
     pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
 }
 
 impl PartialEq for AnimeInfo {
@@ -91,6 +93,8 @@ pub struct MangaInfo {
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
     pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
 }
 
 impl PartialEq for MangaInfo {
@@ -166,6 +170,7 @@ impl MAL {
                 episodes: get_child("episodes")?.parse()?,
                 start_date: util::parse_str_date(&get_child("start_date")?),
                 end_date: util::parse_str_date(&get_child("end_date")?),
+                image_url: get_child("image")?,
             };
 
             entries.push(entry);
@@ -209,6 +214,7 @@ impl MAL {
                 volumes: get_child("volumes")?.parse()?,
                 start_date: util::parse_str_date(&get_child("start_date")?),
                 end_date: util::parse_str_date(&get_child("end_date")?),
+                image_url: get_child("image")?,
             };
 
             entries.push(entry);

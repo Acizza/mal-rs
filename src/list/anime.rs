@@ -205,6 +205,7 @@ impl ListEntry for AnimeEntry {
             episodes: get_child("series_episodes")?.parse()?,
             start_date: util::parse_str_date(&get_child("series_start")?),
             end_date: util::parse_str_date(&get_child("series_end")?),
+            image_url: get_child("series_image")?,
         };
 
         let entry = AnimeEntry {
