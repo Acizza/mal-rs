@@ -54,60 +54,6 @@ use request::{Request, RequestError};
 use reqwest::StatusCode;
 use std::convert::Into;
 
-/// Represents basic information of an anime series on MyAnimeList.
-#[derive(Debug, Clone)]
-pub struct AnimeInfo {
-    /// The ID of the anime series.
-    pub id: u32,
-    /// The title of the anime series.
-    pub title: String,
-    /// The alternative titles for the series.
-    pub synonyms: Vec<String>,
-    /// The number of episodes in the anime series.
-    pub episodes: u32,
-    /// The date the series started airing.
-    pub start_date: Option<NaiveDate>,
-    /// The date the series finished airing.
-    pub end_date: Option<NaiveDate>,
-    /// The URL to the cover image of the series.
-    pub image_url: String,
-}
-
-impl PartialEq for AnimeInfo {
-    #[inline]
-    fn eq(&self, other: &AnimeInfo) -> bool {
-        self.id == other.id
-    }
-}
-
-/// Represents basic information of a manga series on MyAnimeList.
-#[derive(Debug, Clone)]
-pub struct MangaInfo {
-    /// The ID of the manga series.
-    pub id: u32,
-    /// The title of the anime series.
-    pub title: String,
-    /// The alternative titles for the series.
-    pub synonyms: Vec<String>,
-    /// The number of chapters in the manga series.
-    pub chapters: u32,
-    /// The number of volumes in the manga series.
-    pub volumes: u32,
-    /// The date the series started airing.
-    pub start_date: Option<NaiveDate>,
-    /// The date the series finished airing.
-    pub end_date: Option<NaiveDate>,
-    /// The URL to the cover image of the series.
-    pub image_url: String,
-}
-
-impl PartialEq for MangaInfo {
-    #[inline]
-    fn eq(&self, other: &MangaInfo) -> bool {
-        self.id == other.id
-    }
-}
-
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
 #[derive(Debug)]
 pub struct MAL {
@@ -152,38 +98,9 @@ impl MAL {
     ///
     /// assert!(found.len() > 0);
     /// ```
+    #[inline]
     pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
-        let mut resp = match Request::Search(name, ListType::Anime).send(self) {
-            Ok(resp) => resp,
-            Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
-                return Ok(Vec::new());
-            },
-            Err(err) => bail!(err),
-        };
-
-        let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
-        let mut entries = Vec::new();
-
-        for child in root.children() {
-            let get_child = |name| {
-                util::get_xml_child_text(child, name)
-                    .context("failed to parse MAL response")
-            };
-
-            let entry = AnimeInfo {
-                id: get_child("id")?.parse()?,
-                title: get_child("title")?,
-                synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
-                episodes: get_child("episodes")?.parse()?,
-                start_date: util::parse_str_date(&get_child("start_date")?),
-                end_date: util::parse_str_date(&get_child("end_date")?),
-                image_url: get_child("image")?,
-            };
-
-            entries.push(entry);
-        }
-
-        Ok(entries)
+        self.search::<AnimeInfo>(name)
     }
 
     /// Searches MyAnimeList for a manga and returns all found results.
@@ -198,8 +115,13 @@ impl MAL {
     ///
     /// assert!(found.len() > 0);
     /// ```
+    #[inline]
     pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
-        let mut resp = match Request::Search(name, ListType::Manga).send(self) {
+        self.search::<MangaInfo>(name)
+    }
+
+    fn search<SI: SeriesInfo>(&self, name: &str) -> Result<Vec<SI>, Error> {
+        let mut resp = match Request::Search(name, SI::list_type()).send(self) {
             Ok(resp) => resp,
             Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
                 return Ok(Vec::new());
@@ -211,22 +133,7 @@ impl MAL {
         let mut entries = Vec::new();
 
         for child in root.children() {
-            let get_child = |name| {
-                util::get_xml_child_text(child, name)
-                    .context("failed to parse MAL response")
-            };
-
-            let entry = MangaInfo {
-                id: get_child("id")?.parse()?,
-                title: get_child("title")?,
-                synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
-                chapters: get_child("chapters")?.parse()?,
-                volumes: get_child("volumes")?.parse()?,
-                start_date: util::parse_str_date(&get_child("start_date")?),
-                end_date: util::parse_str_date(&get_child("end_date")?),
-                image_url: get_child("image")?,
-            };
-
+            let entry = SI::parse_search_result(child)?;
             entries.push(entry);
         }
 
@@ -270,5 +177,123 @@ impl MAL {
     #[inline]
     pub fn manga_list(&self) -> MangaList {
         MangaList::new(self)
+    }
+}
+
+/// Represents series information for an anime or manga series.
+pub trait SeriesInfo where Self: Sized {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<Self, Error>;
+
+    #[doc(hidden)]
+    fn list_type() -> ListType;
+}
+
+/// Represents basic information of an anime series on MyAnimeList.
+#[derive(Debug, Clone)]
+pub struct AnimeInfo {
+    /// The ID of the anime series.
+    pub id: u32,
+    /// The title of the anime series.
+    pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
+    /// The number of episodes in the anime series.
+    pub episodes: u32,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
+}
+
+impl SeriesInfo for AnimeInfo {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<AnimeInfo, Error> {
+        let get_child = |name| {
+            util::get_xml_child_text(xml_elem, name)
+                .context("failed to parse MAL response")
+        };
+
+        let entry = AnimeInfo {
+            id: get_child("id")?.parse()?,
+            title: get_child("title")?,
+            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
+            episodes: get_child("episodes")?.parse()?,
+            start_date: util::parse_str_date(&get_child("start_date")?),
+            end_date: util::parse_str_date(&get_child("end_date")?),
+            image_url: get_child("image")?,
+        };
+
+        Ok(entry)
+    }
+
+    #[doc(hidden)]
+    fn list_type() -> ListType {
+        ListType::Anime
+    }
+}
+
+impl PartialEq for AnimeInfo {
+    #[inline]
+    fn eq(&self, other: &AnimeInfo) -> bool {
+        self.id == other.id
+    }
+}
+
+/// Represents basic information of a manga series on MyAnimeList.
+#[derive(Debug, Clone)]
+pub struct MangaInfo {
+    /// The ID of the manga series.
+    pub id: u32,
+    /// The title of the anime series.
+    pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
+    /// The number of chapters in the manga series.
+    pub chapters: u32,
+    /// The number of volumes in the manga series.
+    pub volumes: u32,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
+}
+
+impl SeriesInfo for MangaInfo {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<MangaInfo, Error> {
+        let get_child = |name| {
+            util::get_xml_child_text(xml_elem, name)
+                .context("failed to parse MAL response")
+        };
+
+        let entry = MangaInfo {
+            id: get_child("id")?.parse()?,
+            title: get_child("title")?,
+            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
+            chapters: get_child("chapters")?.parse()?,
+            volumes: get_child("volumes")?.parse()?,
+            start_date: util::parse_str_date(&get_child("start_date")?),
+            end_date: util::parse_str_date(&get_child("end_date")?),
+            image_url: get_child("image")?,
+        };
+
+        Ok(entry)
+    }
+
+    #[doc(hidden)]
+    fn list_type() -> ListType {
+        ListType::Manga
+    }
+}
+
+impl PartialEq for MangaInfo {
+    #[inline]
+    fn eq(&self, other: &MangaInfo) -> bool {
+        self.id == other.id
     }
 }
