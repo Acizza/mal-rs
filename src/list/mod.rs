@@ -111,7 +111,7 @@ pub trait List {
 
         entry.set_last_updated_time();
         entry.reset_changed_fields();
-        
+
         Ok(())
     }
 
@@ -271,12 +271,4 @@ impl<T: Debug + Clone> From<T> for ChangeTracker<T> {
     fn from(value: T) -> Self {
         ChangeTracker::new(value)
     }
-}
-
-fn parse_tags(tag_str: &str) -> Vec<String> {
-    tag_str.split(',').map(|s| s.to_string()).collect()
-}
-
-fn concat_tags(tags: &[String]) -> String {
-    tags.iter().map(|tag| format!("{},", tag)).collect()
 }

@@ -202,6 +202,7 @@ impl ListEntry for AnimeEntry {
         let info = AnimeInfo {
             id: get_child("series_animedb_id")?.parse()?,
             title: get_child("series_title")?,
+            synonyms: util::split_into_vec(&get_child("series_synonyms")?, "; "),
             episodes: get_child("series_episodes")?.parse()?,
             start_date: util::parse_str_date(&get_child("series_start")?),
             end_date: util::parse_str_date(&get_child("series_end")?),
@@ -224,7 +225,7 @@ impl ListEntry for AnimeEntry {
                     .unwrap_or(false)
                     .into()
             },
-            tags: super::parse_tags(&get_child("my_tags")?).into(),
+            tags: util::split_into_vec(&get_child("my_tags")?, ",").into(),
         };
 
         Ok(entry)
@@ -238,7 +239,7 @@ impl ListEntry for AnimeEntry {
             finish_date(date): "date_finish" => util::date_to_str(*date),
             score(score): "score" => score.to_string(),
             rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
-            tags(t): "tags" => super::concat_tags(t)
+            tags(t): "tags" => util::concat_by_delimeter(t, ',')
         )
     }
 

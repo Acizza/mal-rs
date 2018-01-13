@@ -216,6 +216,7 @@ impl ListEntry for MangaEntry {
         let info = MangaInfo {
             id: get_child("series_mangadb_id")?.parse()?,
             title: get_child("series_title")?,
+            synonyms: util::split_into_vec(&get_child("series_synonyms")?, "; "),
             chapters: get_child("series_chapters")?.parse()?,
             volumes: get_child("series_volumes")?.parse()?,
             start_date: util::parse_str_date(&get_child("series_start")?),
@@ -240,7 +241,7 @@ impl ListEntry for MangaEntry {
                     .unwrap_or(false)
                     .into()
             },
-            tags: super::parse_tags(&get_child("my_tags")?).into(),
+            tags: util::split_into_vec(&get_child("my_tags")?, ",").into(),
         };
 
         Ok(entry)
@@ -255,7 +256,7 @@ impl ListEntry for MangaEntry {
             start_date(date): "date_start" => util::date_to_str(*date),
             finish_date(date): "date_finish" => util::date_to_str(*date),
             rereading(v): "enable_rereading" => (*v as u8).to_string(),
-            tags(t): "tags" => super::concat_tags(t)
+            tags(t): "tags" => util::concat_by_delimeter(t, ',')
         )
     }
 

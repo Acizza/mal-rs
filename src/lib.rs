@@ -61,6 +61,8 @@ pub struct AnimeInfo {
     pub id: u32,
     /// The title of the anime series.
     pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
     /// The number of episodes in the anime series.
     pub episodes: u32,
     /// The date the series started airing.
@@ -85,6 +87,8 @@ pub struct MangaInfo {
     pub id: u32,
     /// The title of the anime series.
     pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
     /// The number of chapters in the manga series.
     pub chapters: u32,
     /// The number of volumes in the manga series.
@@ -167,6 +171,7 @@ impl MAL {
             let entry = AnimeInfo {
                 id: get_child("id")?.parse()?,
                 title: get_child("title")?,
+                synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
                 episodes: get_child("episodes")?.parse()?,
                 start_date: util::parse_str_date(&get_child("start_date")?),
                 end_date: util::parse_str_date(&get_child("end_date")?),
@@ -210,6 +215,7 @@ impl MAL {
             let entry = MangaInfo {
                 id: get_child("id")?.parse()?,
                 title: get_child("title")?,
+                synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
                 chapters: get_child("chapters")?.parse()?,
                 volumes: get_child("volumes")?.parse()?,
                 start_date: util::parse_str_date(&get_child("start_date")?),
