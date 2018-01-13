@@ -43,12 +43,7 @@ impl<'a> Request<'a> {
                 }
 
                 url.query_pairs_mut().append_pair("q", name);
-
-                mal.client
-                    .get(url)
-                    .with_auth(mal)
-                    .send_req()?
-                    .verify_status()
+                mal.client.get(url).with_auth(mal).send_req()
             }
             List(uname, list_type) => {
                 url.set_path("/malappinfo.php");
@@ -63,7 +58,7 @@ impl<'a> Request<'a> {
                     .append_pair("status", "all")
                     .append_pair("type", query);
 
-                Ok(mal.client.get(url).send_req()?.verify_status()?)
+                mal.client.get(url).send_req()
             }
             Add(id, list_type, body) => {
                 match list_type {
@@ -71,12 +66,11 @@ impl<'a> Request<'a> {
                     ListType::Manga => url.set_path(&format!("/api/mangalist/add/{}.xml", id)),
                 }
 
-                Ok(mal.client
+                mal.client
                     .post(url)
                     .with_body(body)
                     .with_auth(mal)
-                    .send_req()?
-                    .verify_status()?)
+                    .send_req()
             }
             Update(id, list_type, body) => {
                 match list_type {
@@ -84,12 +78,11 @@ impl<'a> Request<'a> {
                     ListType::Manga => url.set_path(&format!("/api/mangalist/update/{}.xml", id)),
                 }
 
-                Ok(mal.client
+                mal.client
                     .post(url)
                     .with_body(body)
                     .with_auth(mal)
-                    .send_req()?
-                    .verify_status()?)
+                    .send_req()
             }
             Delete(id, list_type) => {
                 match list_type {
@@ -97,15 +90,11 @@ impl<'a> Request<'a> {
                     ListType::Manga => url.set_path(&format!("/api/mangalist/delete/{}.xml", id)),
                 }
 
-                Ok(mal.client
-                    .delete(url)
-                    .with_auth(mal)
-                    .send_req()?
-                    .verify_status()?)
+                mal.client.delete(url).with_auth(mal).send_req()
             }
             VerifyCredentials => {
                 url.set_path("/api/account/verify_credentials.xml");
-                Ok(mal.client.get(url).with_auth(mal).send_req()?)
+                mal.client.get(url).with_auth(mal).send_req()
             }
         }
     }
@@ -131,18 +120,10 @@ impl RequestExt for RequestBuilder {
     }
 
     fn send_req(&mut self) -> Result<Response, RequestError> {
-        self.send().map_err(|e| RequestError::HttpError(e))
-    }
-}
+        let resp = self.send().map_err(|e| RequestError::HttpError(e))?;
 
-trait ResponseExt {
-    fn verify_status(self) -> Result<Response, RequestError>;
-}
-
-impl ResponseExt for Response {
-    fn verify_status(self) -> Result<Response, RequestError> {
-        match self.status() {
-            StatusCode::Ok | StatusCode::Created => Ok(self),
+        match resp.status() {
+            StatusCode::Ok | StatusCode::Created => Ok(resp),
             status => Err(RequestError::BadResponseCode(status)),
         }
     }
