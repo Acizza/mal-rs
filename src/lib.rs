@@ -50,7 +50,7 @@ use chrono::NaiveDate;
 use failure::{Error, ResultExt, SyncFailure};
 use list::ListType;
 use minidom::Element;
-use request::Request;
+use request::{Request, RequestError};
 use reqwest::StatusCode;
 use std::convert::Into;
 
@@ -153,11 +153,13 @@ impl MAL {
     /// assert!(found.len() > 0);
     /// ```
     pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
-        let mut resp = Request::Search(name, ListType::Anime).send(self)?;
-
-        if resp.status() == StatusCode::NoContent {
-            return Ok(Vec::new());
-        }
+        let mut resp = match Request::Search(name, ListType::Anime).send(self) {
+            Ok(resp) => resp,
+            Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
+                return Ok(Vec::new());
+            },
+            Err(err) => bail!(err),
+        };
 
         let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
         let mut entries = Vec::new();
@@ -197,11 +199,13 @@ impl MAL {
     /// assert!(found.len() > 0);
     /// ```
     pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
-        let mut resp = Request::Search(name, ListType::Manga).send(self)?;
-        
-        if resp.status() == StatusCode::NoContent {
-            return Ok(Vec::new());
-        }
+        let mut resp = match Request::Search(name, ListType::Manga).send(self) {
+            Ok(resp) => resp,
+            Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
+                return Ok(Vec::new());
+            },
+            Err(err) => bail!(err),
+        };
 
         let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
         let mut entries = Vec::new();

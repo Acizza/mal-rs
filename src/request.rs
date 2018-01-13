@@ -1,8 +1,13 @@
-use failure::Error;
 use list::ListType;
 use MAL;
-use reqwest::{RequestBuilder, Response, StatusCode, Url};
+use reqwest::{self, RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
+
+#[derive(Fail, Debug)]
+pub enum RequestError {
+    #[fail(display = "received bad response code from MAL: {}", _0)] BadResponseCode(StatusCode),
+    #[fail(display = "error sending request to MAL: {}", _0)] HttpError(#[cause] reqwest::Error),
+}
 
 pub type ID = u32;
 pub type Username<'a> = &'a str;
@@ -22,7 +27,7 @@ pub enum Request<'a> {
 impl<'a> Request<'a> {
     pub const BASE_URL: &'static str = "https://myanimelist.net";
 
-    pub fn send(self, mal: &MAL) -> Result<Response, Error> {
+    pub fn send(self, mal: &MAL) -> Result<Response, RequestError> {
         lazy_static! {
             static ref BASE_URL: Url = Url::parse(Request::BASE_URL).unwrap();
         }
@@ -38,7 +43,12 @@ impl<'a> Request<'a> {
                 }
 
                 url.query_pairs_mut().append_pair("q", name);
-                Ok(mal.client.get(url).with_auth(mal).send()?)
+
+                mal.client
+                    .get(url)
+                    .with_auth(mal)
+                    .send_req()?
+                    .verify_status()
             }
             List(uname, list_type) => {
                 url.set_path("/malappinfo.php");
@@ -53,7 +63,7 @@ impl<'a> Request<'a> {
                     .append_pair("status", "all")
                     .append_pair("type", query);
 
-                Ok(mal.client.get(url).send()?.verify_status()?)
+                Ok(mal.client.get(url).send_req()?.verify_status()?)
             }
             Add(id, list_type, body) => {
                 match list_type {
@@ -65,7 +75,7 @@ impl<'a> Request<'a> {
                     .post(url)
                     .with_body(body)
                     .with_auth(mal)
-                    .send()?
+                    .send_req()?
                     .verify_status()?)
             }
             Update(id, list_type, body) => {
@@ -78,7 +88,7 @@ impl<'a> Request<'a> {
                     .post(url)
                     .with_body(body)
                     .with_auth(mal)
-                    .send()?
+                    .send_req()?
                     .verify_status()?)
             }
             Delete(id, list_type) => {
@@ -90,12 +100,12 @@ impl<'a> Request<'a> {
                 Ok(mal.client
                     .delete(url)
                     .with_auth(mal)
-                    .send()?
+                    .send_req()?
                     .verify_status()?)
             }
             VerifyCredentials => {
                 url.set_path("/api/account/verify_credentials.xml");
-                Ok(mal.client.get(url).with_auth(mal).send()?)
+                Ok(mal.client.get(url).with_auth(mal).send_req()?)
             }
         }
     }
@@ -104,6 +114,8 @@ impl<'a> Request<'a> {
 trait RequestExt {
     fn with_auth(&mut self, mal: &MAL) -> &mut RequestBuilder;
     fn with_body(&mut self, body: &str) -> &mut RequestBuilder;
+
+    fn send_req(&mut self) -> Result<Response, RequestError>;
 }
 
 impl RequestExt for RequestBuilder {
@@ -117,24 +129,21 @@ impl RequestExt for RequestBuilder {
 
         self.body(format!("data={}", body)).headers(headers)
     }
+
+    fn send_req(&mut self) -> Result<Response, RequestError> {
+        self.send().map_err(|e| RequestError::HttpError(e))
+    }
 }
 
 trait ResponseExt {
-    fn verify_status(self) -> Result<Response, BadResponse>;
+    fn verify_status(self) -> Result<Response, RequestError>;
 }
 
-#[derive(Fail, Debug)]
-#[fail(display = "received bad response from MAL: {} {}", _0, _1)]
-pub struct BadResponse(pub u16, pub String);
-
 impl ResponseExt for Response {
-    fn verify_status(self) -> Result<Response, BadResponse> {
+    fn verify_status(self) -> Result<Response, RequestError> {
         match self.status() {
             StatusCode::Ok | StatusCode::Created => Ok(self),
-            status => {
-                let reason = status.canonical_reason().unwrap_or("Unknown Error").into();
-                Err(BadResponse(status.as_u16(), reason))
-            }
+            status => Err(RequestError::BadResponseCode(status)),
         }
     }
 }
