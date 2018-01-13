@@ -1,6 +1,6 @@
 //! This module handles adding / updating / removing manga to a user's manga list.
 
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use MangaInfo;
@@ -47,7 +47,10 @@ impl<'a> List for MangaList<'a> {
 
 #[derive(Debug, Clone)]
 pub struct MangaEntry {
+    /// The general series information.
     pub series_info: MangaInfo,
+    /// The last time the series was updated.
+    pub last_updated_time: DateTime<Utc>,
     chapter: ChangeTracker<u32>,
     volume: ChangeTracker<u32>,
     status: ChangeTracker<ReadStatus>,
@@ -86,6 +89,7 @@ impl MangaEntry {
     pub fn new(info: MangaInfo) -> MangaEntry {
         MangaEntry {
             series_info: info,
+            last_updated_time: Utc::now(),
             chapter: 0.into(),
             volume: 0.into(),
             status: ReadStatus::default().into(),
@@ -220,6 +224,7 @@ impl ListEntry for MangaEntry {
 
         let entry = MangaEntry {
             series_info: info,
+            last_updated_time: Utc.timestamp(get_child("my_last_updated")?.parse()?, 0),
             chapter: get_child("my_read_chapters")?.parse::<u32>()?.into(),
             volume: get_child("my_read_volumes")?.parse::<u32>()?.into(),
             status: ReadStatus::from_i32(get_child("my_status")?.parse()?)?.into(),
@@ -253,6 +258,7 @@ impl ListEntry for MangaEntry {
         )
     }
 
+    #[inline]
     fn reset_changed_fields(&mut self) {
         reset_changed_fields!(
             self,
@@ -267,6 +273,12 @@ impl ListEntry for MangaEntry {
         );
     }
 
+    #[inline]
+    fn set_last_updated_time(&mut self) {
+        self.last_updated_time = Utc::now();
+    }
+
+    #[inline]
     fn id(&self) -> u32 {
         self.series_info.id
     }

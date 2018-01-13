@@ -109,7 +109,9 @@ pub trait List {
             RequestURL::Add(entry.id(), Self::list_type()),
             &body)?;
 
+        entry.set_last_updated_time();
         entry.reset_changed_fields();
+        
         Ok(())
     }
 
@@ -152,7 +154,9 @@ pub trait List {
             RequestURL::Update(entry.id(), Self::list_type()),
             &body)?;
 
+        entry.set_last_updated_time();
         entry.reset_changed_fields();
+
         Ok(())
     }
 
@@ -235,6 +239,9 @@ pub trait ListEntry where Self: Sized {
     /// Used to reset the status of any fields that have been modified
     /// since last updating the entry on MyAnimeList.
     fn reset_changed_fields(&mut self);
+
+    /// Used to update the last updated time.
+    fn set_last_updated_time(&mut self);
 
     /// Used to get the MyAnimeList ID of the list entry.
     fn id(&self) -> u32;

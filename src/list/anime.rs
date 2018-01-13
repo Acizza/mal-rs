@@ -1,7 +1,7 @@
 //! This module handles adding / updating / removing anime to a user's anime list.
 
 use AnimeInfo;
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
@@ -50,6 +50,8 @@ impl<'a> List for AnimeList<'a> {
 pub struct AnimeEntry {
     /// The general series information.
     pub series_info: AnimeInfo,
+    /// The last time the series was updated.
+    pub last_updated_time: DateTime<Utc>,
     watched_episodes: ChangeTracker<u32>,
     start_date: ChangeTracker<Option<NaiveDate>>,
     finish_date: ChangeTracker<Option<NaiveDate>>,
@@ -87,6 +89,7 @@ impl AnimeEntry {
     pub fn new(info: AnimeInfo) -> AnimeEntry {
         AnimeEntry {
             series_info: info,
+            last_updated_time: Utc::now(),
             watched_episodes: 0.into(),
             start_date: None.into(),
             finish_date: None.into(),
@@ -206,6 +209,7 @@ impl ListEntry for AnimeEntry {
 
         let entry = AnimeEntry {
             series_info: info,
+            last_updated_time: Utc.timestamp(get_child("my_last_updated")?.parse()?, 0),
             watched_episodes: get_child("my_watched_episodes")?.parse::<u32>()?.into(),
             start_date: util::parse_str_date(&get_child("my_start_date")?).into(),
             finish_date: util::parse_str_date(&get_child("my_finish_date")?).into(),
@@ -237,6 +241,7 @@ impl ListEntry for AnimeEntry {
         )
     }
 
+    #[inline]
     fn reset_changed_fields(&mut self) {
         reset_changed_fields!(
             self,
@@ -250,6 +255,12 @@ impl ListEntry for AnimeEntry {
         );
     }
 
+    #[inline]
+    fn set_last_updated_time(&mut self) {
+        self.last_updated_time = Utc::now();
+    }
+
+    #[inline]
     fn id(&self) -> u32 {
         self.series_info.id
     }
