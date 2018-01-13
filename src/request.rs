@@ -120,7 +120,7 @@ impl RequestExt for RequestBuilder {
     }
 
     fn send_req(&mut self) -> Result<Response, RequestError> {
-        let resp = self.send().map_err(|e| RequestError::HttpError(e))?;
+        let resp = self.send().map_err(RequestError::HttpError)?;
 
         match resp.status() {
             StatusCode::Ok | StatusCode::Created => Ok(resp),
