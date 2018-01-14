@@ -1,7 +1,5 @@
 # mal-rs [![Crates.io](https://img.shields.io/crates/v/mal.svg)](https://crates.io/crates/mal) [![Documentation](https://docs.rs/mal/badge.svg)](https://docs.rs/mal)
-The purpose of this library is to provide high-level access to the MyAnimeList API. It currently allows you to search for anime and manga, as well as add, update, and remove anime / manga from a user's list.
-
-Please note that while most data fields are parsed from the API, there are some that are purposely ignored because they are only available when making certain types of requests.
+The purpose of this library is to provide high-level access to the MyAnimeList API. It currently allows you to search for anime / manga, verify user credentials, and add / update / delete anime and manga from a user's list.
 
 # Usage
 By default, the library builds with support to access a user's anime and manga list.
