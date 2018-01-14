@@ -5,6 +5,7 @@ use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use MangaInfo;
 use minidom::Element;
+use std::fmt::{self, Display};
 use super::{ChangeTracker, List, ListEntry, ListType};
 use util;
 
@@ -343,5 +344,18 @@ impl Default for ReadStatus {
     #[inline]
     fn default() -> ReadStatus {
         ReadStatus::PlanToRead
+    }
+}
+
+impl Display for ReadStatus {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ReadStatus::Reading => write!(f, "reading"),
+            ReadStatus::Completed => write!(f, "completed"),
+            ReadStatus::OnHold => write!(f, "on hold"),
+            ReadStatus::Dropped => write!(f, "dropped"),
+            ReadStatus::PlanToRead => write!(f, "plan to read"),
+        }
     }
 }

@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
+use std::fmt::{self, Display};
 use super::{ChangeTracker, List, ListEntry, ListType};
 use util;
 
@@ -332,5 +333,18 @@ impl Default for WatchStatus {
     #[inline]
     fn default() -> Self {
         WatchStatus::PlanToWatch
+    }
+}
+
+impl Display for WatchStatus {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            WatchStatus::Watching => write!(f, "watching"),
+            WatchStatus::Completed => write!(f, "completed"),
+            WatchStatus::OnHold => write!(f, "on hold"),
+            WatchStatus::Dropped => write!(f, "dropped"),
+            WatchStatus::PlanToWatch => write!(f, "plan to watch"),
+        }
     }
 }
