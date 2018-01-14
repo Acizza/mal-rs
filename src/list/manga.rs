@@ -214,6 +214,7 @@ impl MangaEntry {
 }
 
 impl ListEntry for MangaEntry {
+    #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<MangaEntry, Error> {
         let get_child =
             |name| util::get_xml_child_text(xml_elem, name).context("failed to parse MAL response");
@@ -258,6 +259,7 @@ impl ListEntry for MangaEntry {
         Ok(entry)
     }
 
+    #[doc(hidden)]
     fn generate_xml(&self) -> Result<String, Error> {
         generate_response_xml!(self,
             chapter(num): "chapter" => num.to_string(),
@@ -271,6 +273,7 @@ impl ListEntry for MangaEntry {
         )
     }
 
+    #[doc(hidden)]
     #[inline]
     fn reset_changed_fields(&mut self) {
         reset_changed_fields!(
@@ -286,11 +289,13 @@ impl ListEntry for MangaEntry {
         );
     }
 
+    #[doc(hidden)]
     #[inline]
     fn set_last_updated_time(&mut self) {
         self.last_updated_time = Utc::now();
     }
 
+    #[doc(hidden)]
     #[inline]
     fn id(&self) -> u32 {
         self.series_info.id

@@ -40,6 +40,7 @@ pub enum ListType {
 }
 
 impl Display for ListType {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ListType::Anime => write!(f, "anime"),
@@ -200,6 +201,7 @@ pub trait List {
     /// // Delete Toradora from the user's anime list
     /// anime_list.delete(&toradora_entry).unwrap();
     /// ```
+    #[inline]
     fn delete(&self, entry: &Self::Entry) -> Result<(), Error> {
         Request::Delete(entry.id(), Self::list_type())
             .send(self.mal())?;
@@ -224,6 +226,7 @@ pub trait List {
     /// // Delete the anime with the id of 4224 (Toradora) from the user's anime list
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
+    #[inline]
     fn delete_id(&self, id: u32) -> Result<(), Error> {
         Request::Delete(id, Self::list_type())
             .send(self.mal())?;
@@ -233,27 +236,28 @@ pub trait List {
 
     /// Returns what type of list this is.
     fn list_type() -> ListType;
+
     /// Returns a reference to the [MAL] client used to send requests to the API.
     /// 
     /// [MAL]: ../struct.MAL.html
     fn mal(&self) -> &MAL;
 }
 
-/// Contains required methods to generate and parse list entries from the API.
+/// Represents an entry on a user's list.
 pub trait ListEntry where Self: Sized {
-    /// Used to construct a new version of `Self` from response XML.
+    #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<Self, Error>;
 
-    /// Used to generate XML to send to the API.
+    #[doc(hidden)]
     fn generate_xml(&self) -> Result<String, Error>;
-    /// Used to reset the status of any fields that have been modified
-    /// since last updating the entry on MyAnimeList.
+
+    #[doc(hidden)]
     fn reset_changed_fields(&mut self);
 
-    /// Used to update the last updated time.
+    #[doc(hidden)]
     fn set_last_updated_time(&mut self);
 
-    /// Used to get the MyAnimeList ID of the list entry.
+    #[doc(hidden)]
     fn id(&self) -> u32;
 }
 
