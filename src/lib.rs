@@ -157,8 +157,11 @@ impl MAL {
     /// ```
     #[inline]
     pub fn verify_credentials(&self) -> Result<bool, Error> {
-        let resp = Request::VerifyCredentials.send(self)?;
-        Ok(resp.status() == StatusCode::Ok)
+        match Request::VerifyCredentials.send(self) {
+            Ok(_) => Ok(true),
+            Err(RequestError::BadResponseCode(StatusCode::Unauthorized)) => Ok(false),
+            Err(err) => bail!(err),
+        }
     }
 
     /// Returns a new [AnimeList] instance to perform operations on the user's anime list.
