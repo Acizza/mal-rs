@@ -2,7 +2,7 @@ use failure::{Error, SyncFailure};
 use MAL;
 use minidom::Element;
 use request::Request;
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Display};
 
 macro_rules! generate_response_xml {
     ($struct:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr),+) => {{
@@ -37,6 +37,15 @@ pub mod manga;
 pub enum ListType {
     Anime,
     Manga,
+}
+
+impl Display for ListType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ListType::Anime => write!(f, "anime"),
+            ListType::Manga => write!(f, "manga"),
+        }
+    }
 }
 
 /// Contains methods that perform common operations on a user's anime / manga list.
