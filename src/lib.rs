@@ -68,7 +68,7 @@ pub struct MAL {
 impl MAL {
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
     ///
-    /// If you only need to retrieve the user's anime list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's anime / manga list, then you do not need to provide a valid password.
     #[inline]
     pub fn new<S: Into<String>>(username: S, password: S) -> MAL {
         MAL::with_client(username, password, reqwest::Client::new())
@@ -76,7 +76,7 @@ impl MAL {
 
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
     ///
-    /// If you only need to retrieve the user's anime list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's anime / manga list, then you do not need to provide a valid password.
     #[inline]
     pub fn with_client<S: Into<String>>(username: S, password: S, client: reqwest::Client) -> MAL {
         MAL {
