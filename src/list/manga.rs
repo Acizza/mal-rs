@@ -4,8 +4,9 @@ use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
 use MangaInfo;
 use minidom::Element;
+use request::ListType;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, EntryValues, ListEntry, ListType};
+use super::{ChangeTracker, EntryValues, ListEntry};
 use util;
 
 #[derive(Debug, Clone)]

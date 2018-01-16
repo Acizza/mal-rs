@@ -87,8 +87,8 @@
 use failure::{Error, SyncFailure};
 use MAL;
 use minidom::Element;
-use request::Request;
-use std::fmt::{self, Debug, Display};
+use request::{ListType, Request};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 macro_rules! generate_response_xml {
@@ -118,23 +118,6 @@ macro_rules! reset_changed_fields {
 pub mod anime;
 #[cfg(feature = "manga-list")]
 pub mod manga;
-
-/// Specifies what type of list is being used.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ListType {
-    Anime,
-    Manga,
-}
-
-impl Display for ListType {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ListType::Anime => write!(f, "anime"),
-            ListType::Manga => write!(f, "manga"),
-        }
-    }
-}
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list.
 /// 

@@ -1,7 +1,12 @@
-use list::ListType;
 use MAL;
 use reqwest::{self, RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ListType {
+    Anime,
+    Manga,
+}
 
 #[derive(Fail, Debug)]
 pub enum RequestError {

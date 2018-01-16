@@ -55,9 +55,9 @@ use list::manga::MangaEntry;
 
 use chrono::NaiveDate;
 use failure::{Error, SyncFailure};
-use list::{List, ListType};
+use list::List;
 use minidom::Element;
-use request::{Request, RequestError};
+use request::{ListType, Request, RequestError};
 use reqwest::StatusCode;
 use std::convert::Into;
 
