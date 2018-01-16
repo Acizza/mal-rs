@@ -1,56 +1,12 @@
-//! This module handles adding / updating / removing manga to a user's manga list.
+//! Contains data structures for operating on a user's manga list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
-use MAL;
 use MangaInfo;
 use minidom::Element;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, EntryValues, List, ListEntry, ListType};
+use super::{ChangeTracker, EntryValues, ListEntry, ListType};
 use util;
-
-/// Used to perform operations on a user's manga list.
-///
-/// Note that since the `MangaList` struct stores a reference to a [MAL] instance,
-/// the [MAL] instance must live as long as the `MangaList`.
-///
-/// [MAL]: ../../struct.MAL.html
-#[derive(Debug, Copy, Clone)]
-pub struct MangaList<'a> {
-    /// A reference to the MyAnimeList client used to send requests to the API.
-    pub mal: &'a MAL,
-}
-
-impl<'a> MangaList<'a> {
-    /// Creates a new instance of the `MangaList` struct and stores the provided [MAL] reference
-    /// so authorization can be handled automatically.
-    ///
-    /// [MAL]: ../../struct.MAL.html
-    #[inline]
-    pub fn new(mal: &'a MAL) -> MangaList<'a> {
-        MangaList { mal }
-    }
-}
-
-impl<'a> List for MangaList<'a> {
-    type Entry = MangaEntry;
-    type EntryValues = MangaValues;
-
-    #[inline]
-    fn list_type() -> ListType {
-        ListType::Manga
-    }
-
-    #[inline]
-    fn mal(&self) -> &MAL {
-        self.mal
-    }
-}
-
-#[derive(Fail, Debug)]
-pub enum MangaEntryError {
-    #[fail(display = "{} is not a known read status", _0)] UnknownReadStatus(i32),
-}
 
 #[derive(Debug, Clone)]
 pub struct MangaEntry {
@@ -63,10 +19,10 @@ pub struct MangaEntry {
 }
 
 impl MangaEntry {
-    /// Creates a new `MangaEntry` instance with [MangaInfo] obtained from [MAL].
+    /// Creates a new `MangaEntry` instance with [`MangaInfo`] obtained from [`MAL`].
     ///
-    /// [MAL]: ../../struct.MAL.html
-    /// [MangaInfo]: ../../struct.MangaInfo.html
+    /// [`MAL`]: ../../struct.MAL.html
+    /// [`MangaInfo`]: ../../struct.MangaInfo.html
     ///
     /// # Examples
     ///
@@ -96,7 +52,9 @@ impl MangaEntry {
     }
 }
 
-impl ListEntry<MangaValues> for MangaEntry {
+impl ListEntry for MangaEntry {
+    type Values = MangaValues;
+
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<MangaEntry, Error> {
         let get_child = |name| util::get_xml_child_text(xml_elem, name);
@@ -138,6 +96,17 @@ impl ListEntry<MangaValues> for MangaEntry {
     fn id(&self) -> u32 {
         self.series_info.id
     }
+
+    #[doc(hidden)]
+    #[inline]
+    fn list_type() -> ListType {
+        ListType::Manga
+    }
+}
+
+#[derive(Fail, Debug)]
+pub enum MangaValuesError {
+    #[fail(display = "{} is not a known read status", _0)] UnknownReadStatus(i32),
 }
 
 /// Contains values that can set / updated on a user's list.
@@ -197,7 +166,7 @@ impl MangaValues {
                 let status_num = get_child("my_status")?.parse()?;
 
                 ReadStatus::from_i32(status_num)
-                    .ok_or_else(|| MangaEntryError::UnknownReadStatus(status_num))?
+                    .ok_or_else(|| MangaValuesError::UnknownReadStatus(status_num))?
                     .into()
             },
             score: get_child("my_score")?.parse::<u8>()?.into(),

@@ -1,56 +1,12 @@
-//! This module handles adding / updating / removing anime to a user's anime list.
+//! Contains data structures for operating on a user's anime list.
 
 use AnimeInfo;
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
-use MAL;
 use minidom::Element;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, EntryValues, List, ListEntry, ListType};
+use super::{ChangeTracker, EntryValues, ListEntry, ListType};
 use util;
-
-/// Used to perform operations on a user's anime list.
-///
-/// Note that since the `AnimeList` struct stores a reference to a [MAL] instance,
-/// the [MAL] instance must live as long as the `AnimeList`.
-///
-/// [MAL]: ../../struct.MAL.html
-#[derive(Debug, Copy, Clone)]
-pub struct AnimeList<'a> {
-    /// A reference to the MyAnimeList client used to add and update anime on a user's list.
-    pub mal: &'a MAL,
-}
-
-impl<'a> AnimeList<'a> {
-    /// Creates a new instance of the `AnimeList` struct and stores the provided [MAL] reference
-    /// so authorization can be handled automatically.
-    ///
-    /// [MAL]: ../../struct.MAL.html
-    #[inline]
-    pub fn new(mal: &'a MAL) -> AnimeList<'a> {
-        AnimeList { mal }
-    }
-}
-
-impl<'a> List for AnimeList<'a> {
-    type Entry = AnimeEntry;
-    type EntryValues = AnimeValues;
-
-    #[inline]
-    fn list_type() -> ListType {
-        ListType::Anime
-    }
-
-    #[inline]
-    fn mal(&self) -> &MAL {
-        self.mal
-    }
-}
-
-#[derive(Fail, Debug)]
-pub enum AnimeEntryError {
-    #[fail(display = "{} is not a known watch status", _0)] UnknownWatchStatus(i32),
-}
 
 /// Represents information about an anime series on a user's list.
 #[derive(Debug, Clone)]
@@ -64,10 +20,10 @@ pub struct AnimeEntry {
 }
 
 impl AnimeEntry {
-    /// Creates a new `AnimeEntry` instance with [AnimeInfo] obtained from [MAL].
+    /// Creates a new `AnimeEntry` instance with [`AnimeInfo`] obtained from [`MAL`].
     ///
-    /// [MAL]: ../../struct.MAL.html
-    /// [AnimeInfo]: ../../struct.AnimeInfo.html
+    /// [`MAL`]: ../../struct.MAL.html
+    /// [`AnimeInfo`]: ../../struct.AnimeInfo.html
     ///
     /// # Examples
     ///
@@ -97,7 +53,9 @@ impl AnimeEntry {
     }
 }
 
-impl ListEntry<AnimeValues> for AnimeEntry {
+impl ListEntry for AnimeEntry {
+    type Values = AnimeValues;
+
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<AnimeEntry, Error> {
         let get_child = |name| util::get_xml_child_text(xml_elem, name);
@@ -138,6 +96,12 @@ impl ListEntry<AnimeValues> for AnimeEntry {
     fn id(&self) -> u32 {
         self.series_info.id
     }
+
+    #[doc(hidden)]
+    #[inline]
+    fn list_type() -> ListType {
+        ListType::Anime
+    }
 }
 
 impl PartialEq for AnimeEntry {
@@ -145,6 +109,11 @@ impl PartialEq for AnimeEntry {
     fn eq(&self, other: &AnimeEntry) -> bool {
         self.series_info == other.series_info
     }
+}
+
+#[derive(Fail, Debug)]
+pub enum AnimeValuesError {
+    #[fail(display = "{} is not a known watch status", _0)] UnknownWatchStatus(i32),
 }
 
 /// Contains values that can set / updated on a user's list.
@@ -201,7 +170,7 @@ impl AnimeValues {
                 let status_num = get_child("my_status")?.parse()?;
 
                 WatchStatus::from_i32(status_num)
-                    .ok_or_else(|| AnimeEntryError::UnknownWatchStatus(status_num))?
+                    .ok_or_else(|| AnimeValuesError::UnknownWatchStatus(status_num))?
                     .into()
             },
             score: get_child("my_score")?.parse::<u8>()?.into(),

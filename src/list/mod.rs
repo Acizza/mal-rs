@@ -1,8 +1,95 @@
+//! This module provides functionality for adding, updating, deleting, and reading entries
+//! from a user's anime / manga list.
+//! 
+//! All functions that perform operations on a user's list are located in the [`List`] struct.
+//! 
+//! [`List`]: ./struct.List.html
+//! 
+//! # Examples
+//! 
+//! Adding an anime to a user's list:
+//! 
+//! ```no_run
+//! use mal::{MAL, AnimeInfo};
+//! use mal::list::List;
+//! use mal::list::anime::{AnimeEntry, WatchStatus};
+//! 
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//! 
+//! // Search for "Toradora" on MyAnimeList
+//! let mut search_results = mal.search_anime("Toradora").unwrap();
+//! 
+//! // Use the first result's info
+//! let toradora_info = search_results.swap_remove(0);
+//! 
+//! // Create a new anime list entry with Toradora's info
+//! let mut entry = AnimeEntry::new(toradora_info);
+//! 
+//! // Set the entry's watched episodes to 5 and status to watching
+//! entry.values
+//!      .set_watched_episodes(5)
+//!      .set_status(WatchStatus::Watching);
+//! 
+//! // Add the entry to the user's anime list
+//! mal.anime_list().add(&mut entry).unwrap();
+//! ```
+//! 
+//! Updating a manga on a user's list by its ID:
+//! 
+//! ```no_run
+//! use mal::MAL;
+//! use mal::list::manga::{MangaEntry, MangaValues, ReadStatus};
+//! 
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//! 
+//! // Create new entry values
+//! let mut values = MangaValues::new();
+//! 
+//! // Set the number of read chapters to 25, read volumes to 2, score to 10, and status to completed
+//! values.set_read_chapters(25)
+//!       .set_read_volumes(2)
+//!       .set_score(10)
+//!       .set_status(ReadStatus::Completed);
+//! 
+//! // Update the entry with an id of 2 (Berserk) on the user's manga list with the specified values
+//! mal.manga_list().update_id(2, &mut values).unwrap();
+//! ```
+//! 
+//! Retrieving an anime off of a user's list and updating it:
+//! 
+//! ```no_run
+//! use mal::MAL;
+//! use mal::list::anime::WatchStatus;
+//! 
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//! 
+//! // Read all list entries from the user's list
+//! let entries = mal.anime_list().read_entries().unwrap();
+//! 
+//! // Find the first series on the user's list that's being watched
+//! let mut entry = entries.into_iter().find(|e| {
+//!     e.values.status() == WatchStatus::Watching
+//! }).unwrap();
+//! 
+//! // Set the entrie's watched episodes to its total episodes, its score to 10, and status to completed
+//! entry.values
+//!      .set_watched_episodes(entry.series_info.episodes)
+//!      .set_score(10)
+//!      .set_status(WatchStatus::Completed);
+//! 
+//! // Update the entry on the user's anime list with the new values
+//! mal.anime_list().update(&mut entry).unwrap();
+//! ```
+
 use failure::{Error, SyncFailure};
 use MAL;
 use minidom::Element;
 use request::Request;
 use std::fmt::{self, Debug, Display};
+use std::marker::PhantomData;
 
 macro_rules! generate_response_xml {
     ($struct:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr),+) => {{
@@ -49,16 +136,51 @@ impl Display for ListType {
     }
 }
 
-/// Contains methods that perform common operations on a user's list.
-pub trait List {
-    /// Represents an entry on a user's list.
-    type Entry: ListEntry<Self::EntryValues>;
+/// This struct allows you to add, update, delete, and read entries to / from a user's list.
+/// 
+/// The `E` type parameter dictates what type of list is will be modified when performing operations.
+/// 
+/// # Examples
+/// 
+/// ```no_run
+/// use mal::MAL;
+/// use mal::list::List;
+/// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+/// 
+/// // Create a new MAL instance
+/// let mal = MAL::new("username", "password");
+/// 
+/// // Create a new List that will operate on a user's anime list.
+/// // (note that you can also just call mal.anime_list() here, which does the same thing)
+/// let anime_list = List::<AnimeEntry>::new(&mal);
+/// 
+/// // Create new anime entry values
+/// let mut values = AnimeValues::new();
+/// 
+/// // Set the watched episode count to 25, and status to completed
+/// values.set_watched_episodes(25)
+///       .set_status(WatchStatus::Completed);
+/// 
+/// // Add the anime with ID 4224 (Toradora) to a user's anime list with the values set above
+/// anime_list.add_id(4224, &mut values).unwrap();
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct List<'a, E: ListEntry> {
+    /// A reference to the [`MAL`] instance used to perform operations on a user's list.
+    /// 
+    /// [`MAL`]: ../struct.MAL.html
+    pub mal: &'a MAL,
+    _list_entry: PhantomData<E>,
+}
 
-    // This only exists here because putting it in the ListEntry trait (where it makes more sense)
-    // causes an ambiguous associated type error. Using this type as a type parameter
-    // for the Entry type avoids the issue when placed here
-    /// Represents values that can be modified on a user's list.
-    type EntryValues: EntryValues;
+impl<'a, E: ListEntry> List<'a, E> {
+    /// Creates a new `List` instance for performing operations on a user's list.
+    pub fn new(mal: &'a MAL) -> List<'a, E> {
+        List {
+            mal,
+            _list_entry: PhantomData,
+        }
+    }
 
     /// Requests and parses all entries on a user's list.
     /// 
@@ -66,7 +188,6 @@ pub trait List {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::List;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -74,16 +195,16 @@ pub trait List {
     /// // Read all list entries from the user's list
     /// let entries = mal.anime_list().read_entries().unwrap();
     /// ```
-    fn read_entries(&self) -> Result<Vec<Self::Entry>, Error> {
-        let resp = Request::List(&self.mal().username, Self::list_type())
-            .send(self.mal())?
+    pub fn read_entries(&self) -> Result<Vec<E>, Error> {
+        let resp = Request::List(&self.mal.username, E::list_type())
+            .send(self.mal)?
             .text()?;
 
         let root: Element = resp.parse().map_err(SyncFailure::new)?;
         let mut entries = Vec::new();
 
         for child in root.children().skip(1) {
-            let entry = Self::Entry::parse(child)?;
+            let entry = E::parse(child)?;
             entries.push(entry);
         }
 
@@ -122,7 +243,7 @@ pub trait List {
     /// mal.anime_list().add(&mut entry).unwrap();
     /// ```
     #[inline]
-    fn add(&self, entry: &mut Self::Entry) -> Result<(), Error> {
+    pub fn add(&self, entry: &mut E) -> Result<(), Error> {
         self.add_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
         Ok(())
@@ -135,7 +256,7 @@ pub trait List {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
+    /// use mal::MAL;
     /// use mal::list::List;
     /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
     /// 
@@ -152,11 +273,11 @@ pub trait List {
     /// // Add an entry with an id of 4224 (Toradora) to the user's anime list
     /// mal.anime_list().add_id(4224, &mut values).unwrap();
     /// ```
-    fn add_id(&self, id: u32, values: &mut Self::EntryValues) -> Result<(), Error> {
+    pub fn add_id(&self, id: u32, values: &mut E::Values) -> Result<(), Error> {
         let body = values.generate_xml()?;
 
-        Request::Add(id, Self::list_type(), &body)
-            .send(self.mal())?;
+        Request::Add(id, E::list_type(), &body)
+            .send(self.mal)?;
 
         values.reset_changed_fields();
         Ok(())
@@ -196,7 +317,7 @@ pub trait List {
     /// anime_list.update(&mut toradora).unwrap();
     /// ```
     #[inline]
-    fn update(&self, entry: &mut Self::Entry) -> Result<(), Error> {
+    pub fn update(&self, entry: &mut E) -> Result<(), Error> {
         self.update_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
         Ok(())
@@ -209,7 +330,7 @@ pub trait List {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
+    /// use mal::MAL;
     /// use mal::list::List;
     /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
     /// 
@@ -227,11 +348,11 @@ pub trait List {
     /// // Update the entry with an id of 4224 (Toradora) on the user's anime list
     /// mal.anime_list().update_id(4224, &mut values).unwrap();
     /// ```
-    fn update_id(&self, id: u32, values: &mut Self::EntryValues) -> Result<(), Error> {
+    pub fn update_id(&self, id: u32, values: &mut E::Values) -> Result<(), Error> {
         let body = values.generate_xml()?;
 
-        Request::Update(id, Self::list_type(), &body)
-            .send(self.mal())?;
+        Request::Update(id, E::list_type(), &body)
+            .send(self.mal)?;
 
         values.reset_changed_fields();
         Ok(())
@@ -270,7 +391,7 @@ pub trait List {
     /// anime_list.delete(&toradora_entry).unwrap();
     /// ```
     #[inline]
-    fn delete(&self, entry: &Self::Entry) -> Result<(), Error> {
+    pub fn delete(&self, entry: &E) -> Result<(), Error> {
         self.delete_id(entry.id())
     }
 
@@ -281,7 +402,7 @@ pub trait List {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
+    /// use mal::MAL;
     /// use mal::list::List;
     /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
@@ -292,35 +413,33 @@ pub trait List {
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
     #[inline]
-    fn delete_id(&self, id: u32) -> Result<(), Error> {
-        Request::Delete(id, Self::list_type())
-            .send(self.mal())?;
+    pub fn delete_id(&self, id: u32) -> Result<(), Error> {
+        Request::Delete(id, E::list_type())
+            .send(self.mal)?;
         
         Ok(())
     }
-
-    /// Indicates what type of list this is.
-    fn list_type() -> ListType;
-
-    /// Returns a reference to the [MAL] client used to send requests to the API.
-    /// 
-    /// [MAL]: ../struct.MAL.html
-    fn mal(&self) -> &MAL;
 }
 
 /// Represents an entry on a user's list.
-pub trait ListEntry<V: EntryValues> where Self: Sized {
+pub trait ListEntry where Self: Sized {
+    #[doc(hidden)]
+    type Values: EntryValues;
+
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<Self, Error>;
 
     #[doc(hidden)]
-    fn values_mut(&mut self) -> &mut V;
+    fn values_mut(&mut self) -> &mut Self::Values;
 
     #[doc(hidden)]
     fn set_last_updated_time(&mut self);
 
     #[doc(hidden)]
     fn id(&self) -> u32;
+
+    #[doc(hidden)]
+    fn list_type() -> ListType;
 }
 
 /// Represents values on a user's list that can be set.

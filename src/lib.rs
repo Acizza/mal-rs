@@ -1,5 +1,10 @@
 //! The purpose of this library is to provide high-level access to the MyAnimeList API.
-//! It allows you to search for anime / manga on MyAnimeList, as well as add / update / delete anime from a user's list.
+//! It allows you to search for anime / manga, as well as add, update, delete, and read anime / manga from a user's list.
+//! 
+//! All operations are centered around the [`MAL`] struct, as it stores the user credentials
+//! required to perform most operations on the API.
+//! 
+//! [`MAL`]: ./struct.MAL.html
 //! 
 //! # Examples
 //! 
@@ -44,13 +49,13 @@ extern crate minidom;
 extern crate reqwest;
 
 #[cfg(feature = "anime-list")]
-use list::anime::AnimeList;
+use list::anime::AnimeEntry;
 #[cfg(feature = "manga-list")]
-use list::manga::MangaList;
+use list::manga::MangaEntry;
 
 use chrono::NaiveDate;
 use failure::{Error, SyncFailure};
-use list::ListType;
+use list::{List, ListType};
 use minidom::Element;
 use request::{Request, RequestError};
 use reqwest::StatusCode;
@@ -70,7 +75,7 @@ pub struct MAL {
 impl MAL {
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
     ///
-    /// If you only need to retrieve the entries from a user's anime / manga list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's list, then you do not need to provide a valid password.
     #[inline]
     pub fn new<S: Into<String>>(username: S, password: S) -> MAL {
         MAL::with_client(username, password, reqwest::Client::new())
@@ -78,7 +83,7 @@ impl MAL {
 
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
     ///
-    /// If you only need to retrieve the entries from a user's anime / manga list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's list, then you do not need to provide a valid password.
     #[inline]
     pub fn with_client<S: Into<String>>(username: S, password: S, client: reqwest::Client) -> MAL {
         MAL {
@@ -97,8 +102,6 @@ impl MAL {
     ///
     /// let mal = MAL::new("username", "password");
     /// let found = mal.search_anime("Cowboy Bebop").unwrap();
-    ///
-    /// assert!(found.len() > 0);
     /// ```
     #[inline]
     pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
@@ -114,8 +117,6 @@ impl MAL {
     ///
     /// let mal = MAL::new("username", "password");
     /// let found = mal.search_manga("Bleach").unwrap();
-    ///
-    /// assert!(found.len() > 0);
     /// ```
     #[inline]
     pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
@@ -166,22 +167,22 @@ impl MAL {
         }
     }
 
-    /// Returns a new [AnimeList] instance to perform operations on the user's anime list.
+    /// Returns a new [`List`] instance that performs operations on the user's anime list.
     /// 
-    /// [AnimeList]: ./list/anime/struct.AnimeList.html
+    /// [`List`]: ./list/struct.List.html
     #[cfg(feature = "anime-list")]
     #[inline]
-    pub fn anime_list(&self) -> AnimeList {
-        AnimeList::new(self)
+    pub fn anime_list(&self) -> List<AnimeEntry> {
+        List::<AnimeEntry>::new(self)
     }
 
-    /// Returns a new [MangaList] instance to perform operations on the user's manga list.
+    /// Returns a new [`List`] instance that performs operations on the user's manga list.
     /// 
-    /// [MangaList]: ./list/manga/struct.MangaList.html
+    /// [`List`]: ./list/struct.List.html
     #[cfg(feature = "manga-list")]
     #[inline]
-    pub fn manga_list(&self) -> MangaList {
-        MangaList::new(self)
+    pub fn manga_list(&self) -> List<MangaEntry> {
+        List::<MangaEntry>::new(self)
     }
 }
 
