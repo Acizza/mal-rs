@@ -1,5 +1,5 @@
 # mal-rs [![Crates.io](https://img.shields.io/crates/v/mal.svg)](https://crates.io/crates/mal) [![Documentation](https://docs.rs/mal/badge.svg)](https://docs.rs/mal)
-The purpose of this library is to provide high-level access to the MyAnimeList API. It currently allows you to search for anime / manga, verify user credentials, and add / update / delete anime and manga from a user's list.
+The purpose of this library is to provide high-level access to the MyAnimeList API. It currently allows you to add, update, delete, search for, and read entries from a user's anime and manga list.
 
 # Usage
 By default, the library builds with support to access a user's anime and manga list.
@@ -38,12 +38,11 @@ default-features = false
 
 # Example
 
-The following will update an existing anime on a user's list, but the code to add / delete an anime is similar:
+The following will update an existing anime on a user's list:
 ```rust
 extern crate mal;
 
 use mal::MAL;
-use mal::list::List;
 use mal::list::anime::WatchStatus;
 
 fn main() {
@@ -57,15 +56,18 @@ fn main() {
     let entries = anime_list.read_entries().unwrap();
 
     // Find Toradora in the list entries
-    let mut toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    let mut toradora = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
 
     // Set new values for the list entry
     // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
-    toradora_entry.set_watched_episodes(25)
-                  .set_score(10)
-                  .set_status(WatchStatus::Completed);
+    toradora.values
+            .set_watched_episodes(25)
+            .set_score(10)
+            .set_status(WatchStatus::Completed);
 
     // Update the anime on the user's list
-    anime_list.update(&mut toradora_entry).unwrap();
+    anime_list.update(&mut toradora).unwrap();
 }
 ```
+
+For more examples, see the docs on [docs.rs](https://docs.rs/mal).
