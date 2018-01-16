@@ -66,7 +66,7 @@
 //! let mal = MAL::new("username", "password");
 //! 
 //! // Read the user's anime list
-//! let list = mal.anime_list().read_entries().unwrap();
+//! let list = mal.anime_list().read().unwrap();
 //! 
 //! // Find the first series on the user's list that's being watched
 //! let mut entry = list.entries.into_iter().find(|e| {
@@ -180,10 +180,13 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
     /// 
-    /// // Read all list entries from the user's list
-    /// let entries = mal.anime_list().read_entries().unwrap();
+    /// // Read the user's anime list
+    /// let list = mal.anime_list().read().unwrap();
+    /// 
+    /// println!("{:?}", list.user_info);
+    /// println!("{:?}", list.entries);
     /// ```
-    pub fn read_entries(&self) -> Result<ListEntries<E>, Error> {
+    pub fn read(&self) -> Result<ListEntries<E>, Error> {
         let resp = Request::List(&self.mal.username, E::list_type())
             .send(self.mal)?
             .text()?;
@@ -298,7 +301,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// let anime_list = mal.anime_list();
     /// 
     /// // Read the user's anime list
-    /// let list = anime_list.read_entries().unwrap();
+    /// let list = anime_list.read().unwrap();
     /// 
     /// // Find Toradora in the list entries
     /// let mut toradora = list
@@ -380,7 +383,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// let anime_list = mal.anime_list();
     /// 
     /// // Read the user's anime list
-    /// let list = anime_list.read_entries().unwrap();
+    /// let list = anime_list.read().unwrap();
     /// 
     /// // Find Toradora in the list entries
     /// let toradora = list
