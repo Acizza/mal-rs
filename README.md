@@ -6,7 +6,7 @@ By default, the library builds with support to access a user's anime and manga l
 If you plan on performing operations on both, you can simply add `mal` as a dependency to your `Cargo.toml` file:
 ```toml
 [dependencies]
-mal = "0.4"
+mal = "0.5"
 ```
 
 If you only need to access one type of list (or none at all), you should use the following feature gates to reduce the final binary size and compilation time:
@@ -14,7 +14,7 @@ If you only need to access one type of list (or none at all), you should use the
 If you only need access to the user's anime list, use the `anime-list` feature:
 ```toml
 [dependencies.mal]
-version = "0.4"
+version = "0.5"
 default-features = false
 
 features = ["anime-list"]
@@ -23,7 +23,7 @@ features = ["anime-list"]
 If you only need access to a user's manga list, use the `manga-list` feature:
 ```toml
 [dependencies.mal]
-version = "0.4"
+version = "0.5"
 default-features = false
 
 features = ["manga-list"]
@@ -32,7 +32,7 @@ features = ["manga-list"]
 Or, if you don't need to access either, just disable the default features:
 ```toml
 [dependencies.mal]
-version = "0.4"
+version = "0.5"
 default-features = false
 ```
 
