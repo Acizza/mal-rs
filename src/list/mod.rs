@@ -49,12 +49,18 @@ impl Display for ListType {
     }
 }
 
-/// Contains methods that perform common operations on a user's anime / manga list.
+/// Contains methods that perform common operations on a user's list.
 pub trait List {
-    /// Represents an entry on a user's anime / manga list.
-    type Entry: ListEntry;
+    /// Represents an entry on a user's list.
+    type Entry: ListEntry<Self::EntryValues>;
 
-    /// Requests and parses all entries on a user's anime / manga list.
+    // This only exists here because putting it in the ListEntry trait (where it makes more sense)
+    // causes an ambiguous associated type error. Using this type as a type parameter
+    // for the Entry type avoids the issue when placed here
+    /// Represents values that can be modified on a user's list.
+    type EntryValues: EntryValues;
+
+    /// Requests and parses all entries on a user's list.
     /// 
     /// # Examples
     /// 
@@ -84,9 +90,9 @@ pub trait List {
         Ok(entries)
     }
 
-    /// Adds an entry to the user's anime / manga list.
+    /// Adds an entry to a user's list.
     /// 
-    /// If the entry is already on the user's list, nothing will happen.
+    /// If the entry is already on a user's list, nothing will happen.
     /// 
     /// # Examples
     /// 
@@ -108,26 +114,57 @@ pub trait List {
     /// let mut entry = AnimeEntry::new(toradora_info);
     /// 
     /// // Set the entry's watched episodes to 5 and status to watching
-    /// entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
+    /// entry.values
+    ///      .set_watched_episodes(5)
+    ///      .set_status(WatchStatus::Watching);
     /// 
     /// // Add the entry to the user's anime list
     /// mal.anime_list().add(&mut entry).unwrap();
     /// ```
+    #[inline]
     fn add(&self, entry: &mut Self::Entry) -> Result<(), Error> {
-        let body = entry.generate_xml()?;
-        
-        Request::Add(entry.id(), Self::list_type(), &body)
-            .send(self.mal())?;
-
+        self.add_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
-        entry.reset_changed_fields();
-
         Ok(())
     }
 
-    /// Updates an entry on the user's anime / manga list.
+    /// Adds an entry to a user's list by id.
     /// 
-    /// If the entry is already on the user's list, nothing will happen.
+    /// If the entry is already on a user's list, nothing will happen.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::{MAL, AnimeInfo};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+    /// 
+    /// // Create a new MAL instance
+    /// let mal = MAL::new("username", "password");
+    /// 
+    /// // Create new entry values
+    /// let mut values = AnimeValues::new();
+    /// 
+    /// // Set the number of watched episodes to 5 and the status to watching
+    /// values.set_watched_episodes(5)
+    ///       .set_status(WatchStatus::Watching);
+    /// 
+    /// // Add an entry with an id of 4224 (Toradora) to the user's anime list
+    /// mal.anime_list().add_id(4224, &mut values).unwrap();
+    /// ```
+    fn add_id(&self, id: u32, values: &mut Self::EntryValues) -> Result<(), Error> {
+        let body = values.generate_xml()?;
+
+        Request::Add(id, Self::list_type(), &body)
+            .send(self.mal())?;
+
+        values.reset_changed_fields();
+        Ok(())
+    }
+
+    /// Updates an entry on a user's list.
+    /// 
+    /// If the entry is already on a user's list, nothing will happen.
     /// 
     /// # Examples
     /// 
@@ -146,32 +183,63 @@ pub trait List {
     /// let entries = anime_list.read_entries().unwrap();
     /// 
     /// // Find Toradora in the list entries
-    /// let mut toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    /// let mut toradora = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
     /// 
     /// // Set new values for the list entry
     /// // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
-    /// toradora_entry.set_watched_episodes(25)
-    ///               .set_score(10)
-    ///               .set_status(WatchStatus::Completed);
+    /// toradora.values
+    ///         .set_watched_episodes(25)
+    ///         .set_score(10)
+    ///         .set_status(WatchStatus::Completed);
     /// 
     /// // Update the anime on the user's list
-    /// anime_list.update(&mut toradora_entry).unwrap();
+    /// anime_list.update(&mut toradora).unwrap();
     /// ```
+    #[inline]
     fn update(&self, entry: &mut Self::Entry) -> Result<(), Error> {
-        let body = entry.generate_xml()?;
-
-        Request::Update(entry.id(), Self::list_type(), &body)
-            .send(self.mal())?;
-
+        self.update_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
-        entry.reset_changed_fields();
-
         Ok(())
     }
 
-    /// Removes an entry from the user's anime / manga list.
+    /// Updates an entry on a user's list by id.
     /// 
-    /// If the entry isn't already on the user's list, nothing will happen.
+    /// If the entry is already on the user's list, nothing will happen.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::{MAL, AnimeInfo};
+    /// use mal::list::List;
+    /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+    /// 
+    /// // Create a new MAL instance
+    /// let mal = MAL::new("username", "password");
+    /// 
+    /// // Create new entry values
+    /// let mut values = AnimeValues::new();
+    /// 
+    /// // Set the number of watched episodes to 25, score to 10, and status to completed
+    /// values.set_watched_episodes(25)
+    ///       .set_score(10)
+    ///       .set_status(WatchStatus::Completed);
+    /// 
+    /// // Update the entry with an id of 4224 (Toradora) on the user's anime list
+    /// mal.anime_list().update_id(4224, &mut values).unwrap();
+    /// ```
+    fn update_id(&self, id: u32, values: &mut Self::EntryValues) -> Result<(), Error> {
+        let body = values.generate_xml()?;
+
+        Request::Update(id, Self::list_type(), &body)
+            .send(self.mal())?;
+
+        values.reset_changed_fields();
+        Ok(())
+    }
+
+    /// Removes an entry from a user's list.
+    /// 
+    /// If the entry isn't already on a user's list, nothing will happen.
     /// 
     /// # Examples
     /// 
@@ -203,15 +271,12 @@ pub trait List {
     /// ```
     #[inline]
     fn delete(&self, entry: &Self::Entry) -> Result<(), Error> {
-        Request::Delete(entry.id(), Self::list_type())
-            .send(self.mal())?;
-
-        Ok(())
+        self.delete_id(entry.id())
     }
 
-    /// Removes an entry from the user's anime / manga list by its id.
+    /// Removes an entry from a user's list by its id.
     /// 
-    /// If the entry isn't already on the user's list, nothing will happen.
+    /// If the entry isn't already on a user's list, nothing will happen.
     /// 
     /// # Examples
     /// 
@@ -234,7 +299,7 @@ pub trait List {
         Ok(())
     }
 
-    /// Returns what type of list this is.
+    /// Indicates what type of list this is.
     fn list_type() -> ListType;
 
     /// Returns a reference to the [MAL] client used to send requests to the API.
@@ -244,21 +309,27 @@ pub trait List {
 }
 
 /// Represents an entry on a user's list.
-pub trait ListEntry where Self: Sized {
+pub trait ListEntry<V: EntryValues> where Self: Sized {
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<Self, Error>;
 
     #[doc(hidden)]
-    fn generate_xml(&self) -> Result<String, Error>;
-
-    #[doc(hidden)]
-    fn reset_changed_fields(&mut self);
+    fn values_mut(&mut self) -> &mut V;
 
     #[doc(hidden)]
     fn set_last_updated_time(&mut self);
 
     #[doc(hidden)]
     fn id(&self) -> u32;
+}
+
+/// Represents values on a user's list that can be set.
+pub trait EntryValues {
+    #[doc(hidden)]
+    fn generate_xml(&self) -> Result<String, Error>;
+
+    #[doc(hidden)]
+    fn reset_changed_fields(&mut self);
 }
 
 #[derive(Debug, Clone)]

@@ -1,12 +1,12 @@
 //! This module handles adding / updating / removing manga to a user's manga list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use failure::{Error, ResultExt, SyncFailure};
+use failure::{Error, SyncFailure};
 use MAL;
 use MangaInfo;
 use minidom::Element;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, List, ListEntry, ListType};
+use super::{ChangeTracker, EntryValues, List, ListEntry, ListType};
 use util;
 
 /// Used to perform operations on a user's manga list.
@@ -34,6 +34,7 @@ impl<'a> MangaList<'a> {
 
 impl<'a> List for MangaList<'a> {
     type Entry = MangaEntry;
+    type EntryValues = MangaValues;
 
     #[inline]
     fn list_type() -> ListType {
@@ -57,14 +58,8 @@ pub struct MangaEntry {
     pub series_info: MangaInfo,
     /// The last time the series was updated.
     pub last_updated_time: DateTime<Utc>,
-    chapter: ChangeTracker<u32>,
-    volume: ChangeTracker<u32>,
-    status: ChangeTracker<ReadStatus>,
-    score: ChangeTracker<u8>,
-    start_date: ChangeTracker<Option<NaiveDate>>,
-    finish_date: ChangeTracker<Option<NaiveDate>>,
-    rereading: ChangeTracker<bool>,
-    tags: ChangeTracker<Vec<String>>,
+    /// Contains values that can be set / updated on a user's list.
+    pub values: MangaValues,
 }
 
 impl MangaEntry {
@@ -96,129 +91,15 @@ impl MangaEntry {
         MangaEntry {
             series_info: info,
             last_updated_time: Utc::now(),
-            chapter: 0.into(),
-            volume: 0.into(),
-            status: ReadStatus::default().into(),
-            score: 0.into(),
-            start_date: None.into(),
-            finish_date: None.into(),
-            rereading: false.into(),
-            tags: Vec::new().into(),
+            values: MangaValues::new(),
         }
-    }
-
-    /// Returns the number of chapters read.
-    #[inline]
-    pub fn chapter(&self) -> u32 {
-        self.chapter.value
-    }
-
-    /// Sets the number of chapters read.
-    #[inline]
-    pub fn set_read_chapters(&mut self, chapter: u32) -> &mut MangaEntry {
-        self.chapter.set(chapter);
-        self
-    }
-
-    /// Returns the number of volumes read.
-    #[inline]
-    pub fn volume(&self) -> u32 {
-        self.volume.value
-    }
-
-    /// Sets the number of volumes read.
-    #[inline]
-    pub fn set_read_volumes(&mut self, volume: u32) -> &mut MangaEntry {
-        self.volume.set(volume);
-        self
-    }
-
-    /// Returns the current reading status of the manga.
-    #[inline]
-    pub fn status(&self) -> ReadStatus {
-        self.status.value
-    }
-
-    /// Sets the current read status for the manga.
-    #[inline]
-    pub fn set_status(&mut self, status: ReadStatus) -> &mut MangaEntry {
-        self.status.set(status);
-        self
-    }
-
-    /// Returns the user's score of the manga.
-    #[inline]
-    pub fn score(&self) -> u8 {
-        self.score.value
-    }
-
-    /// Sets the user's score for the manga.
-    #[inline]
-    pub fn set_score(&mut self, score: u8) -> &mut MangaEntry {
-        self.score.set(score);
-        self
-    }
-
-    /// Returns the date the manga started being read.
-    #[inline]
-    pub fn start_date(&self) -> Option<NaiveDate> {
-        self.start_date.value
-    }
-
-    /// Sets the date the user started reading the manga.
-    #[inline]
-    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut MangaEntry {
-        self.start_date.set(date);
-        self
-    }
-
-    /// Returns the date the manga finished being read by the user.
-    #[inline]
-    pub fn finish_date(&self) -> Option<NaiveDate> {
-        self.finish_date.value
-    }
-
-    /// Sets the date the user finished reading the manga.
-    #[inline]
-    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut MangaEntry {
-        self.finish_date.set(date);
-        self
-    }
-
-    /// Returns true if the manga is currently being reread.
-    #[inline]
-    pub fn rereading(&self) -> bool {
-        self.rereading.value
-    }
-
-    /// Sets whether or not the user is currently rereading the manga.
-    #[inline]
-    pub fn set_rereading(&mut self, rereading: bool) -> &mut MangaEntry {
-        self.rereading.set(rereading);
-        self
-    }
-
-    /// Returns the tags the user has set for the manga.
-    #[inline]
-    pub fn tags(&self) -> &Vec<String> {
-        &self.tags.value
-    }
-
-    /// Returns a mutable reference to the tags the user has set for the manga.
-    #[inline]
-    pub fn tags_mut(&mut self) -> &mut Vec<String> {
-        // If a mutable reference is being requested, then it's safe to assume the values
-        // are going to be changed
-        self.tags.changed = true;
-        &mut self.tags.value
     }
 }
 
-impl ListEntry for MangaEntry {
+impl ListEntry<MangaValues> for MangaEntry {
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<MangaEntry, Error> {
-        let get_child =
-            |name| util::get_xml_child_text(xml_elem, name).context("failed to parse MAL response");
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
 
         let info = MangaInfo {
             id: get_child("series_mangadb_id")?.parse()?,
@@ -234,6 +115,82 @@ impl ListEntry for MangaEntry {
         let entry = MangaEntry {
             series_info: info,
             last_updated_time: Utc.timestamp(get_child("my_last_updated")?.parse()?, 0),
+            values: MangaValues::parse(xml_elem)?,
+        };
+
+        Ok(entry)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn values_mut(&mut self) -> &mut MangaValues {
+        &mut self.values
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn set_last_updated_time(&mut self) {
+        self.last_updated_time = Utc::now();
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn id(&self) -> u32 {
+        self.series_info.id
+    }
+}
+
+/// Contains values that can set / updated on a user's list.
+///
+/// # Examples
+///
+/// ```
+/// use mal::list::manga::{MangaValues, ReadStatus};
+///
+/// let mut values = MangaValues::new();
+///
+/// values.set_read_chapters(50)
+///       .set_read_volumes(2)
+///       .set_status(ReadStatus::Reading)
+///       .set_score(7);
+///
+/// assert_eq!(values.chapter(), 50);
+/// assert_eq!(values.volume(), 2);
+/// assert_eq!(values.status(), ReadStatus::Reading);
+/// assert_eq!(values.score(), 7);
+/// ```
+#[derive(Debug, Clone)]
+pub struct MangaValues {
+    chapter: ChangeTracker<u32>,
+    volume: ChangeTracker<u32>,
+    status: ChangeTracker<ReadStatus>,
+    score: ChangeTracker<u8>,
+    start_date: ChangeTracker<Option<NaiveDate>>,
+    finish_date: ChangeTracker<Option<NaiveDate>>,
+    rereading: ChangeTracker<bool>,
+    tags: ChangeTracker<Vec<String>>,
+}
+
+impl MangaValues {
+    /// Creates a new `MangaValues` instance with default values.
+    #[inline]
+    pub fn new() -> MangaValues {
+        MangaValues {
+            chapter: 0.into(),
+            volume: 0.into(),
+            status: ReadStatus::default().into(),
+            score: 0.into(),
+            start_date: None.into(),
+            finish_date: None.into(),
+            rereading: false.into(),
+            tags: Vec::new().into(),
+        }
+    }
+
+    fn parse(xml_elem: &Element) -> Result<MangaValues, Error> {
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
+
+        let values = MangaValues {
             chapter: get_child("my_read_chapters")?.parse::<u32>()?.into(),
             volume: get_child("my_read_volumes")?.parse::<u32>()?.into(),
             status: {
@@ -257,9 +214,117 @@ impl ListEntry for MangaEntry {
             tags: util::split_into_vec(&get_child("my_tags")?, ",").into(),
         };
 
-        Ok(entry)
+        Ok(values)
     }
 
+    /// Returns the number of chapters read.
+    #[inline]
+    pub fn chapter(&self) -> u32 {
+        self.chapter.value
+    }
+
+    /// Sets the number of chapters read.
+    #[inline]
+    pub fn set_read_chapters(&mut self, chapter: u32) -> &mut MangaValues {
+        self.chapter.set(chapter);
+        self
+    }
+
+    /// Returns the number of volumes read.
+    #[inline]
+    pub fn volume(&self) -> u32 {
+        self.volume.value
+    }
+
+    /// Sets the number of volumes read.
+    #[inline]
+    pub fn set_read_volumes(&mut self, volume: u32) -> &mut MangaValues {
+        self.volume.set(volume);
+        self
+    }
+
+    /// Returns the current reading status of the manga.
+    #[inline]
+    pub fn status(&self) -> ReadStatus {
+        self.status.value
+    }
+
+    /// Sets the current read status for the manga.
+    #[inline]
+    pub fn set_status(&mut self, status: ReadStatus) -> &mut MangaValues {
+        self.status.set(status);
+        self
+    }
+
+    /// Returns the user's score of the manga.
+    #[inline]
+    pub fn score(&self) -> u8 {
+        self.score.value
+    }
+
+    /// Sets the user's score for the manga.
+    #[inline]
+    pub fn set_score(&mut self, score: u8) -> &mut MangaValues {
+        self.score.set(score);
+        self
+    }
+
+    /// Returns the date the manga started being read.
+    #[inline]
+    pub fn start_date(&self) -> Option<NaiveDate> {
+        self.start_date.value
+    }
+
+    /// Sets the date the user started reading the manga.
+    #[inline]
+    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut MangaValues {
+        self.start_date.set(date);
+        self
+    }
+
+    /// Returns the date the manga finished being read by the user.
+    #[inline]
+    pub fn finish_date(&self) -> Option<NaiveDate> {
+        self.finish_date.value
+    }
+
+    /// Sets the date the user finished reading the manga.
+    #[inline]
+    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut MangaValues {
+        self.finish_date.set(date);
+        self
+    }
+
+    /// Returns true if the manga is currently being reread.
+    #[inline]
+    pub fn rereading(&self) -> bool {
+        self.rereading.value
+    }
+
+    /// Sets whether or not the user is currently rereading the manga.
+    #[inline]
+    pub fn set_rereading(&mut self, rereading: bool) -> &mut MangaValues {
+        self.rereading.set(rereading);
+        self
+    }
+
+    /// Returns the tags the user has set for the manga.
+    #[inline]
+    pub fn tags(&self) -> &Vec<String> {
+        &self.tags.value
+    }
+
+    /// Returns a mutable reference to the tags the user has set for the manga.
+    #[inline]
+    pub fn tags_mut(&mut self) -> &mut Vec<String> {
+        // If a mutable reference is being requested, then it's safe to assume the values
+        // are going to be changed
+        self.tags.changed = true;
+        &mut self.tags.value
+    }
+}
+
+impl EntryValues for MangaValues {
     #[doc(hidden)]
     fn generate_xml(&self) -> Result<String, Error> {
         generate_response_xml!(self,
@@ -288,18 +353,6 @@ impl ListEntry for MangaEntry {
             rereading,
             tags
         );
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn set_last_updated_time(&mut self) {
-        self.last_updated_time = Utc::now();
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn id(&self) -> u32 {
-        self.series_info.id
     }
 }
 

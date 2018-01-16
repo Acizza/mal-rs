@@ -21,7 +21,9 @@
 //! let mut entry = AnimeEntry::new(toradora_info);
 //! 
 //! // Set the entry's watched episodes to 5 and status to watching
-//! entry.set_watched_episodes(5).set_status(WatchStatus::Watching);
+//! entry.values
+//!      .set_watched_episodes(5)
+//!      .set_status(WatchStatus::Watching);
 //! 
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&mut entry).unwrap();
