@@ -49,14 +49,14 @@ fn main() {
     // Create a new MAL instance
     let mal = MAL::new("username", "password");
 
-    // Get a handle to the user's anime list
-    let anime_list = mal.anime_list();
-
-    // Get and parse all of the list entries
-    let entries = anime_list.read_entries().unwrap();
+    // Read the user's anime list
+    let list = mal.anime_list().read().unwrap();
 
     // Find Toradora in the list entries
-    let mut toradora = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    let mut toradora = list
+        .entries
+        .into_iter()
+        .find(|e| e.series_info.id == 4224).unwrap();
 
     // Set new values for the list entry
     // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
@@ -66,7 +66,7 @@ fn main() {
             .set_status(WatchStatus::Completed);
 
     // Update the anime on the user's list
-    anime_list.update(&mut toradora).unwrap();
+    mal.anime_list().update(&mut toradora).unwrap();
 }
 ```
 
