@@ -49,7 +49,7 @@ use list::anime::AnimeList;
 use list::manga::MangaList;
 
 use chrono::NaiveDate;
-use failure::{Error, ResultExt, SyncFailure};
+use failure::{Error, SyncFailure};
 use list::ListType;
 use minidom::Element;
 use request::{Request, RequestError};
@@ -216,10 +216,7 @@ pub struct AnimeInfo {
 impl SeriesInfo for AnimeInfo {
     #[doc(hidden)]
     fn parse_search_result(xml_elem: &Element) -> Result<AnimeInfo, Error> {
-        let get_child = |name| {
-            util::get_xml_child_text(xml_elem, name)
-                .context("failed to parse MAL response")
-        };
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
 
         let entry = AnimeInfo {
             id: get_child("id")?.parse()?,
@@ -271,10 +268,7 @@ pub struct MangaInfo {
 impl SeriesInfo for MangaInfo {
     #[doc(hidden)]
     fn parse_search_result(xml_elem: &Element) -> Result<MangaInfo, Error> {
-        let get_child = |name| {
-            util::get_xml_child_text(xml_elem, name)
-                .context("failed to parse MAL response")
-        };
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
 
         let entry = MangaInfo {
             id: get_child("id")?.parse()?,
