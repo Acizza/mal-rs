@@ -6,7 +6,7 @@ use failure::{Error, SyncFailure};
 use minidom::Element;
 use request::ListType;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, EntryValues, ListEntry};
+use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
 
 /// Represents information about an anime series on a user's list.
@@ -56,6 +56,7 @@ impl AnimeEntry {
 
 impl ListEntry for AnimeEntry {
     type Values = AnimeValues;
+    type UserInfo = AnimeUserInfo;
 
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<AnimeEntry, Error> {
@@ -310,6 +311,44 @@ impl EntryValues for AnimeValues {
             rewatching,
             tags
         );
+    }
+}
+
+/// Contains list statistics and user information.
+#[derive(Debug, Clone)]
+pub struct AnimeUserInfo {
+    /// The user's ID.
+    pub user_id: u32,
+    /// The number of anime being watched.
+    pub watching: u32,
+    /// The number of anime that have been completed.
+    pub completed: u32,
+    /// The number of anime on hold.
+    pub on_hold: u32,
+    /// The number of anime dropped.
+    pub dropped: u32,
+    /// The number of anime that are planning to be watched.
+    pub plan_to_watch: u32,
+    /// The total days spent watching all of the anime on the user's list.
+    pub days_spent_watching: f32,
+}
+
+impl UserInfo for AnimeUserInfo {
+    #[doc(hidden)]
+    fn parse(xml_elem: &Element) -> Result<AnimeUserInfo, Error> {
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
+
+        let info = AnimeUserInfo {
+            user_id: get_child("user_id")?.parse()?,
+            watching: get_child("user_watching")?.parse()?,
+            completed: get_child("user_completed")?.parse()?,
+            on_hold: get_child("user_onhold")?.parse()?,
+            dropped: get_child("user_dropped")?.parse()?,
+            plan_to_watch: get_child("user_plantowatch")?.parse()?,
+            days_spent_watching: get_child("user_days_spent_watching")?.parse()?,
+        };
+
+        Ok(info)
     }
 }
 

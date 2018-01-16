@@ -6,7 +6,7 @@ use MangaInfo;
 use minidom::Element;
 use request::ListType;
 use std::fmt::{self, Display};
-use super::{ChangeTracker, EntryValues, ListEntry};
+use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
 
 #[derive(Debug, Clone)]
@@ -55,6 +55,7 @@ impl MangaEntry {
 
 impl ListEntry for MangaEntry {
     type Values = MangaValues;
+    type UserInfo = MangaUserInfo;
 
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<MangaEntry, Error> {
@@ -323,6 +324,44 @@ impl EntryValues for MangaValues {
             rereading,
             tags
         );
+    }
+}
+
+/// Contains list statistics and user information.
+#[derive(Debug, Clone)]
+pub struct MangaUserInfo {
+    /// The user's ID.
+    pub user_id: u32,
+    /// The number of manga being read.
+    pub reading: u32,
+    /// The number of manga completed.
+    pub completed: u32,
+    /// The number of manga on hold.
+    pub on_hold: u32,
+    /// The number of manga dropped.
+    pub dropped: u32,
+    /// The number of manga that are planning to be read.
+    pub plan_to_read: u32,
+    /// The total days spent reading all of the manga on the user's list.
+    pub days_spent_watching: f32,
+}
+
+impl UserInfo for MangaUserInfo {
+    #[doc(hidden)]
+    fn parse(xml_elem: &Element) -> Result<MangaUserInfo, Error> {
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
+
+        let info = MangaUserInfo {
+            user_id: get_child("user_id")?.parse()?,
+            reading: get_child("user_reading")?.parse()?,
+            completed: get_child("user_completed")?.parse()?,
+            on_hold: get_child("user_onhold")?.parse()?,
+            dropped: get_child("user_dropped")?.parse()?,
+            plan_to_read: get_child("user_plantoread")?.parse()?,
+            days_spent_watching: get_child("user_days_spent_watching")?.parse()?,
+        };
+
+        Ok(info)
     }
 }
 

@@ -9,8 +9,7 @@
 //! # Examples
 //! 
 //! ```no_run
-//! use mal::{MAL, AnimeInfo};
-//! use mal::list::List;
+//! use mal::MAL;
 //! use mal::list::anime::{AnimeEntry, WatchStatus};
 //! 
 //! // Create a new MAL instance

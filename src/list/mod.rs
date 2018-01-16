@@ -10,8 +10,7 @@
 //! Adding an anime to a user's list:
 //! 
 //! ```no_run
-//! use mal::{MAL, AnimeInfo};
-//! use mal::list::List;
+//! use mal::MAL;
 //! use mal::list::anime::{AnimeEntry, WatchStatus};
 //! 
 //! // Create a new MAL instance
@@ -66,11 +65,11 @@
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
 //! 
-//! // Read all list entries from the user's list
-//! let entries = mal.anime_list().read_entries().unwrap();
+//! // Read the user's anime list
+//! let list = mal.anime_list().read_entries().unwrap();
 //! 
 //! // Find the first series on the user's list that's being watched
-//! let mut entry = entries.into_iter().find(|e| {
+//! let mut entry = list.entries.into_iter().find(|e| {
 //!     e.values.status() == WatchStatus::Watching
 //! }).unwrap();
 //! 
@@ -84,7 +83,7 @@
 //! mal.anime_list().update(&mut entry).unwrap();
 //! ```
 
-use failure::{Error, SyncFailure};
+use failure::{Error, ResultExt, SyncFailure};
 use MAL;
 use minidom::Element;
 use request::{ListType, Request};
@@ -118,6 +117,12 @@ macro_rules! reset_changed_fields {
 pub mod anime;
 #[cfg(feature = "manga-list")]
 pub mod manga;
+
+#[derive(Fail, Debug)]
+pub enum ListError {
+    #[fail(display = "no user info found")]
+    NoUserInfoFound,
+}
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list.
 /// 
@@ -178,18 +183,30 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Read all list entries from the user's list
     /// let entries = mal.anime_list().read_entries().unwrap();
     /// ```
-    pub fn read_entries(&self) -> Result<Vec<E>, Error> {
+    pub fn read_entries(&self) -> Result<ListEntries<E>, Error> {
         let resp = Request::List(&self.mal.username, E::list_type())
             .send(self.mal)?
             .text()?;
 
         let root: Element = resp.parse().map_err(SyncFailure::new)?;
+        let mut children = root.children();
+
+        let user_info = {
+            let elem = children.next().ok_or(ListError::NoUserInfoFound)?;
+            UserInfo::parse(elem).context("failed to parse user info")?
+        };
+
         let mut entries = Vec::new();
 
-        for child in root.children().skip(1) {
+        for child in children {
             let entry = E::parse(child)?;
             entries.push(entry);
         }
+
+        let entries = ListEntries {
+            user_info,
+            entries,
+        };
 
         Ok(entries)
     }
@@ -201,8 +218,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
-    /// use mal::list::List;
+    /// use mal::MAL;
     /// use mal::list::anime::{AnimeEntry, WatchStatus};
     /// 
     /// // Create a new MAL instance
@@ -240,8 +256,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+    /// use mal::list::anime::{AnimeValues, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -273,9 +288,8 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
+    /// use mal::MAL;
+    /// use mal::list::anime::WatchStatus;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -283,11 +297,14 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Get a handle to the user's anime list
     /// let anime_list = mal.anime_list();
     /// 
-    /// // Get and parse all of the list entries
-    /// let entries = anime_list.read_entries().unwrap();
+    /// // Read the user's anime list
+    /// let list = anime_list.read_entries().unwrap();
     /// 
     /// // Find Toradora in the list entries
-    /// let mut toradora = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    /// let mut toradora = list
+    ///     .entries
+    ///     .into_iter()
+    ///     .find(|e| e.series_info.id == 4224).unwrap();
     /// 
     /// // Set new values for the list entry
     /// // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
@@ -314,8 +331,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+    /// use mal::list::anime::{AnimeValues, WatchStatus};
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -348,9 +364,8 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// # Examples
     /// 
     /// ```no_run
-    /// use mal::{MAL, AnimeInfo};
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
+    /// use mal::MAL;
+    /// use mal::list::anime::WatchStatus;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -364,14 +379,17 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Get a handle to the user's anime list
     /// let anime_list = mal.anime_list();
     /// 
-    /// // Get and parse all of the list entries
-    /// let entries = anime_list.read_entries().unwrap();
+    /// // Read the user's anime list
+    /// let list = anime_list.read_entries().unwrap();
     /// 
     /// // Find Toradora in the list entries
-    /// let toradora_entry = entries.into_iter().find(|e| e.series_info.id == 4224).unwrap();
+    /// let toradora = list
+    ///     .entries
+    ///     .into_iter()
+    ///     .find(|e| e.series_info.id == 4224).unwrap();
     /// 
     /// // Delete Toradora from the user's anime list
-    /// anime_list.delete(&toradora_entry).unwrap();
+    /// anime_list.delete(&toradora).unwrap();
     /// ```
     #[inline]
     pub fn delete(&self, entry: &E) -> Result<(), Error> {
@@ -386,8 +404,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::List;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
+    /// use mal::list::anime::WatchStatus;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -404,10 +421,25 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 }
 
+/// Contains the results from parsing a user's list.
+#[derive(Debug)]
+pub struct ListEntries<E: ListEntry> {
+    /// General list statistics and info about the user.
+    pub user_info: E::UserInfo,
+    /// The list's entries.
+    pub entries: Vec<E>,
+}
+
+/// Represents info about a user's list.
+pub trait UserInfo where Self: Sized {
+    #[doc(hidden)]
+    fn parse(xml_elem: &Element) -> Result<Self, Error>;
+}
+
 /// Represents an entry on a user's list.
 pub trait ListEntry where Self: Sized {
-    #[doc(hidden)]
     type Values: EntryValues;
+    type UserInfo: UserInfo;
 
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<Self, Error>;
