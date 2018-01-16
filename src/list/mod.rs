@@ -163,6 +163,7 @@ pub struct List<'a, E: ListEntry> {
 
 impl<'a, E: ListEntry> List<'a, E> {
     /// Creates a new `List` instance for performing operations on a user's list.
+    #[inline]
     pub fn new(mal: &'a MAL) -> List<'a, E> {
         List {
             mal,
