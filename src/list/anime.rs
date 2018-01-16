@@ -135,7 +135,7 @@ pub enum AnimeValuesError {
 /// assert_eq!(values.status(), WatchStatus::Watching);
 /// assert_eq!(values.score(), 7);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct AnimeValues {
     watched_episodes: ChangeTracker<u32>,
     start_date: ChangeTracker<Option<NaiveDate>>,
@@ -150,15 +150,7 @@ impl AnimeValues {
     /// Creates a new `AnimeValues` instance with default values.
     #[inline]
     pub fn new() -> AnimeValues {
-        AnimeValues {
-            watched_episodes: 0.into(),
-            start_date: None.into(),
-            finish_date: None.into(),
-            status: WatchStatus::default().into(),
-            score: 0.into(),
-            rewatching: false.into(),
-            tags: Vec::new().into(),
-        }
+        AnimeValues::default()
     }
 
     fn parse(xml_elem: &Element) -> Result<AnimeValues, Error> {

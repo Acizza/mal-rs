@@ -130,7 +130,7 @@ pub enum MangaValuesError {
 /// assert_eq!(values.status(), ReadStatus::Reading);
 /// assert_eq!(values.score(), 7);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct MangaValues {
     chapter: ChangeTracker<u32>,
     volume: ChangeTracker<u32>,
@@ -146,16 +146,7 @@ impl MangaValues {
     /// Creates a new `MangaValues` instance with default values.
     #[inline]
     pub fn new() -> MangaValues {
-        MangaValues {
-            chapter: 0.into(),
-            volume: 0.into(),
-            status: ReadStatus::default().into(),
-            score: 0.into(),
-            start_date: None.into(),
-            finish_date: None.into(),
-            rereading: false.into(),
-            tags: Vec::new().into(),
-        }
+        MangaValues::default()
     }
 
     fn parse(xml_elem: &Element) -> Result<MangaValues, Error> {

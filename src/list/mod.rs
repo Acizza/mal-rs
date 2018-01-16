@@ -466,13 +466,13 @@ pub trait EntryValues {
     fn reset_changed_fields(&mut self);
 }
 
-#[derive(Debug, Clone)]
-struct ChangeTracker<T: Debug + Clone> {
+#[derive(Debug, Default, Clone)]
+struct ChangeTracker<T: Debug + Default + Clone> {
     value: T,
     changed: bool,
 }
 
-impl<T: Debug + Clone> ChangeTracker<T> {
+impl<T: Debug + Default + Clone> ChangeTracker<T> {
     fn new(value: T) -> ChangeTracker<T> {
         ChangeTracker {
             value,
@@ -486,7 +486,7 @@ impl<T: Debug + Clone> ChangeTracker<T> {
     }
 }
 
-impl<T: Debug + Clone> From<T> for ChangeTracker<T> {
+impl<T: Debug + Default + Clone> From<T> for ChangeTracker<T> {
     fn from(value: T) -> Self {
         ChangeTracker::new(value)
     }
