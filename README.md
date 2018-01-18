@@ -1,5 +1,11 @@
 # mal-rs [![Crates.io](https://img.shields.io/crates/v/mal.svg)](https://crates.io/crates/mal) [![Documentation](https://docs.rs/mal/badge.svg)](https://docs.rs/mal)
-The purpose of this library is to provide high-level access to the MyAnimeList API. It currently allows you to add, update, delete, search for, and read entries from a user's anime and manga list.
+The purpose of this library is to provide high-level access to the [MyAnimeList](https://myanimelist.net) API. 
+
+At the time of writing, all features of the API are implemented, which include:
+* Adding, updating, removing, and reading entries from a user's anime and manga list
+* Searching for anime and manga by name
+* Getting misc. info and statistics from a user's anime and manga list
+* Verifying user credentials
 
 # Usage
 By default, the library builds with support to access a user's anime and manga list.
@@ -56,7 +62,8 @@ fn main() {
     let mut toradora = list
         .entries
         .into_iter()
-        .find(|e| e.series_info.id == 4224).unwrap();
+        .find(|e| e.series_info.id == 4224)
+        .unwrap();
 
     // Set new values for the list entry
     // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
