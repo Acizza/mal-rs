@@ -4,6 +4,10 @@
 //! All operations are centered around the [`MAL`] struct, as it stores the user credentials
 //! required to perform most operations on the API.
 //! 
+//! Please keep in mind that the API is rate limited to around ~5 requests per minute.
+//! If you send too many requests, the caller's IP will be banned for ~1-2 hours and all
+//! requests will return a 403 (Forbidden) status code.
+//! 
 //! [`MAL`]: ./struct.MAL.html
 //! 
 //! # Examples
