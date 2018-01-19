@@ -477,16 +477,16 @@ pub enum WatchStatus {
 impl WatchStatus {
     /// Attempts to convert an i32 to a `WatchStatus`.
     ///
-    /// Note that the i32 value of each `WatchStatus` variant is mapped
-    /// to the one provided by the MyAnimeList API, so they do not increment naturally.
-    ///
     /// # Example
     ///
     /// ```
     /// use mal::list::anime::WatchStatus;
     ///
-    /// let status = WatchStatus::from_i32(1).unwrap();
-    /// assert_eq!(status, WatchStatus::Watching);
+    /// let status_watching = WatchStatus::from_i32(1).unwrap();
+    /// let status_plantowatch = WatchStatus::from_i32(6).unwrap();
+    /// 
+    /// assert_eq!(status_watching, WatchStatus::Watching);
+    /// assert_eq!(status_plantowatch, WatchStatus::PlanToWatch);
     /// ```
     #[inline]
     pub fn from_i32(value: i32) -> Option<WatchStatus> {

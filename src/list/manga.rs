@@ -495,16 +495,16 @@ pub enum ReadStatus {
 impl ReadStatus {
     /// Attempts to convert an i32 to a `ReadStatus`.
     ///
-    /// Note that the i32 value of each `ReadStatus` variant is mapped
-    /// to the one provided by the MyAnimeList API, so they do not increment naturally.
-    ///
     /// # Example
     ///
     /// ```
     /// use mal::list::manga::ReadStatus;
     ///
-    /// let status = ReadStatus::from_i32(1).unwrap();
-    /// assert_eq!(status, ReadStatus::Reading);
+    /// let status_reading = ReadStatus::from_i32(1).unwrap();
+    /// let status_plantoread = ReadStatus::from_i32(6).unwrap();
+    /// 
+    /// assert_eq!(status_reading, ReadStatus::Reading);
+    /// assert_eq!(status_plantoread, ReadStatus::PlanToRead);
     /// ```
     #[inline]
     pub fn from_i32(value: i32) -> Option<ReadStatus> {
