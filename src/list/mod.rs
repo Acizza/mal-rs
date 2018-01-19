@@ -1,9 +1,12 @@
-//! This module provides functionality for adding, updating, deleting, and reading entries
+//! This module provides generic functionality for adding, updating, deleting, and reading entries
 //! from a user's anime / manga list.
 //! 
-//! All functions that perform operations on a user's list are located in the [`List`] struct.
+//! All functions that perform operations on a user's list are located in the [`List`] struct,
+//! and list-specific data structures are located in the [`anime`] and [`manga`] modules.
 //! 
 //! [`List`]: ./struct.List.html
+//! [`anime`]: ./anime/index.html
+//! [`manga`]: ./manga/index.html
 //! 
 //! # Examples
 //! 
@@ -38,7 +41,7 @@
 //! 
 //! ```no_run
 //! use mal::MAL;
-//! use mal::list::manga::{MangaEntry, MangaValues, ReadStatus};
+//! use mal::list::manga::{MangaValues, ReadStatus};
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -113,9 +116,9 @@ macro_rules! reset_changed_fields {
     ($struct:ident, $($name:ident),+) => ($($struct.$name.changed = false;)+);
 }
 
-#[cfg(feature = "anime-list")]
+#[cfg(feature = "anime")]
 pub mod anime;
-#[cfg(feature = "manga-list")]
+#[cfg(feature = "manga")]
 pub mod manga;
 
 #[derive(Fail, Debug)]

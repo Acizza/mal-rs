@@ -17,7 +17,7 @@ minidom     = "0.7"
 reqwest     = "0.8"
 
 [features]
-default = ["anime-list", "manga-list"]
+default = ["anime", "manga"]
 
-anime-list = []
-manga-list = []
+anime = []
+manga = []

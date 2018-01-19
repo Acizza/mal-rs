@@ -8,38 +8,31 @@ At the time of writing, all features of the API are implemented, which include:
 * Verifying user credentials
 
 # Usage
-By default, the library builds with support to access a user's anime and manga list.
-If you plan on performing operations on both, you can simply add `mal` as a dependency to your `Cargo.toml` file:
+By default, the library builds with support to work with both anime and manga.
+If you need to search for / perform operations on both the user's anime and manga list, you can simply add `mal` as a dependency to your `Cargo.toml` file:
 ```toml
 [dependencies]
 mal = "0.5"
 ```
 
-If you only need to access one type of list (or none at all), you should use the following feature gates to reduce the final binary size and compilation time:
+If you only need to work with just one type of list, you should use the following feature gates to reduce the final binary size and compilation time:
 
-If you only need access to the user's anime list, use the `anime-list` feature:
+If you only need to search for anime / work with anime on a user's list, use the `anime` feature:
 ```toml
 [dependencies.mal]
 version = "0.5"
 default-features = false
 
-features = ["anime-list"]
+features = ["anime"]
 ```
 
-If you only need access to a user's manga list, use the `manga-list` feature:
+If you only need to search for manga / work with manga on a user's list, use the `manga` feature:
 ```toml
 [dependencies.mal]
 version = "0.5"
 default-features = false
 
-features = ["manga-list"]
-```
-
-Or, if you don't need to access either, just disable the default features:
-```toml
-[dependencies.mal]
-version = "0.5"
-default-features = false
+features = ["manga"]
 ```
 
 # Example

@@ -51,12 +51,11 @@ extern crate chrono;
 extern crate minidom;
 extern crate reqwest;
 
-#[cfg(feature = "anime-list")]
-use list::anime::AnimeEntry;
-#[cfg(feature = "manga-list")]
-use list::manga::MangaEntry;
+#[cfg(feature = "anime")]
+use list::anime::{AnimeInfo, AnimeEntry};
+#[cfg(feature = "manga")]
+use list::manga::{MangaInfo, MangaEntry};
 
-use chrono::NaiveDate;
 use failure::{Error, SyncFailure};
 use list::List;
 use minidom::Element;
@@ -106,6 +105,7 @@ impl MAL {
     /// let mal = MAL::new("username", "password");
     /// let found = mal.search_anime("Cowboy Bebop").unwrap();
     /// ```
+    #[cfg(feature = "anime")]
     #[inline]
     pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
         self.search::<AnimeInfo>(name)
@@ -121,6 +121,7 @@ impl MAL {
     /// let mal = MAL::new("username", "password");
     /// let found = mal.search_manga("Bleach").unwrap();
     /// ```
+    #[cfg(feature = "manga")]
     #[inline]
     pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
         self.search::<MangaInfo>(name)
@@ -146,6 +147,24 @@ impl MAL {
         Ok(entries)
     }
 
+    /// Returns a new [`List`] instance that performs operations on the user's anime list.
+    /// 
+    /// [`List`]: ./list/struct.List.html
+    #[cfg(feature = "anime")]
+    #[inline]
+    pub fn anime_list(&self) -> List<AnimeEntry> {
+        List::<AnimeEntry>::new(self)
+    }
+
+    /// Returns a new [`List`] instance that performs operations on the user's manga list.
+    /// 
+    /// [`List`]: ./list/struct.List.html
+    #[cfg(feature = "manga")]
+    #[inline]
+    pub fn manga_list(&self) -> List<MangaEntry> {
+        List::<MangaEntry>::new(self)
+    }
+
     /// Returns true if the provided account credentials are correct.
     /// 
     /// # Examples
@@ -169,24 +188,6 @@ impl MAL {
             Err(err) => bail!(err),
         }
     }
-
-    /// Returns a new [`List`] instance that performs operations on the user's anime list.
-    /// 
-    /// [`List`]: ./list/struct.List.html
-    #[cfg(feature = "anime-list")]
-    #[inline]
-    pub fn anime_list(&self) -> List<AnimeEntry> {
-        List::<AnimeEntry>::new(self)
-    }
-
-    /// Returns a new [`List`] instance that performs operations on the user's manga list.
-    /// 
-    /// [`List`]: ./list/struct.List.html
-    #[cfg(feature = "manga-list")]
-    #[inline]
-    pub fn manga_list(&self) -> List<MangaEntry> {
-        List::<MangaEntry>::new(self)
-    }
 }
 
 /// Represents series information for an anime or manga series.
@@ -202,213 +203,4 @@ pub trait SeriesInfo where Self: Sized {
 pub enum SeriesInfoError {
     #[fail(display = "no series type named \"{}\" found", _0)]
     UnknownSeriesType(String),
-}
-
-/// Represents basic information of an anime series on MyAnimeList.
-#[derive(Debug, Clone)]
-pub struct AnimeInfo {
-    /// The ID of the anime series.
-    pub id: u32,
-    /// The title of the anime series.
-    pub title: String,
-    /// The alternative titles for the series.
-    pub synonyms: Vec<String>,
-    /// The number of episodes in the anime series.
-    pub episodes: u32,
-    /// The type of series that this is.
-    pub series_type: AnimeType,
-    /// The date the series started airing.
-    pub start_date: Option<NaiveDate>,
-    /// The date the series finished airing.
-    pub end_date: Option<NaiveDate>,
-    /// The URL to the cover image of the series.
-    pub image_url: String,
-}
-
-impl SeriesInfo for AnimeInfo {
-    #[doc(hidden)]
-    fn parse_search_result(xml_elem: &Element) -> Result<AnimeInfo, Error> {
-        let get_child = |name| util::get_xml_child_text(xml_elem, name);
-
-        let entry = AnimeInfo {
-            id: get_child("id")?.parse()?,
-            title: get_child("title")?,
-            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
-            episodes: get_child("episodes")?.parse()?,
-            series_type: {
-                let s_type = get_child("type")?;
-
-                AnimeType::from_str(&s_type)
-                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
-            },
-            start_date: util::parse_str_date(&get_child("start_date")?),
-            end_date: util::parse_str_date(&get_child("end_date")?),
-            image_url: get_child("image")?,
-        };
-
-        Ok(entry)
-    }
-
-    #[doc(hidden)]
-    fn list_type() -> ListType {
-        ListType::Anime
-    }
-}
-
-impl PartialEq for AnimeInfo {
-    #[inline]
-    fn eq(&self, other: &AnimeInfo) -> bool {
-        self.id == other.id
-    }
-}
-
-/// Represents an anime series type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum AnimeType {
-    /// A series that has aired on TV.
-    TV = 1,
-    /// A series that has never aired on TV.
-    OVA,
-    /// A series depicted in the form of a movie.
-    Movie,
-    /// An extra set of episodes from a series that are usually self-contained.
-    Special,
-    /// A series that has only been presented on the internet.
-    ONA,
-}
-
-impl AnimeType {
-    #[cfg(feature = "anime-list")]
-    pub(crate) fn from_i32(value: i32) -> Option<AnimeType> {
-        match value {
-            1 => Some(AnimeType::TV),
-            2 => Some(AnimeType::OVA),
-            3 => Some(AnimeType::Movie),
-            4 => Some(AnimeType::Special),
-            5 => Some(AnimeType::ONA),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn from_str<S: AsRef<str>>(input: S) -> Option<AnimeType> {
-        let lowered = input
-            .as_ref()
-            .to_ascii_lowercase();
-
-        match lowered.as_str() {
-            "tv" => Some(AnimeType::TV),
-            "ova" => Some(AnimeType::OVA),
-            "movie" => Some(AnimeType::Movie),
-            "special" => Some(AnimeType::Special),
-            "ona" => Some(AnimeType::ONA),
-            _ => None,
-        }
-    }
-}
-
-/// Represents basic information of a manga series on MyAnimeList.
-#[derive(Debug, Clone)]
-pub struct MangaInfo {
-    /// The ID of the manga series.
-    pub id: u32,
-    /// The title of the anime series.
-    pub title: String,
-    /// The alternative titles for the series.
-    pub synonyms: Vec<String>,
-    /// The type of series that this is.
-    pub series_type: MangaType,
-    /// The number of chapters in the manga series.
-    pub chapters: u32,
-    /// The number of volumes in the manga series.
-    pub volumes: u32,
-    /// The date the series started airing.
-    pub start_date: Option<NaiveDate>,
-    /// The date the series finished airing.
-    pub end_date: Option<NaiveDate>,
-    /// The URL to the cover image of the series.
-    pub image_url: String,
-}
-
-impl SeriesInfo for MangaInfo {
-    #[doc(hidden)]
-    fn parse_search_result(xml_elem: &Element) -> Result<MangaInfo, Error> {
-        let get_child = |name| util::get_xml_child_text(xml_elem, name);
-
-        let entry = MangaInfo {
-            id: get_child("id")?.parse()?,
-            title: get_child("title")?,
-            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
-            series_type: {
-                let s_type = get_child("type")?;
-
-                MangaType::from_str(&s_type)
-                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
-            },
-            chapters: get_child("chapters")?.parse()?,
-            volumes: get_child("volumes")?.parse()?,
-            start_date: util::parse_str_date(&get_child("start_date")?),
-            end_date: util::parse_str_date(&get_child("end_date")?),
-            image_url: get_child("image")?,
-        };
-
-        Ok(entry)
-    }
-
-    #[doc(hidden)]
-    fn list_type() -> ListType {
-        ListType::Manga
-    }
-}
-
-impl PartialEq for MangaInfo {
-    #[inline]
-    fn eq(&self, other: &MangaInfo) -> bool {
-        self.id == other.id
-    }
-}
-
-/// Represents a manga series type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum MangaType {
-    Manga = 1,
-    Novel,
-    /// A manga series with a single chapter.
-    OneShot,
-    /// A self-published manga series.
-    Doujinshi,
-    /// A South Korean manga series.
-    Manhwa,
-    /// A Taiwanese manga series.
-    Manhua,
-}
-
-impl MangaType {
-    #[cfg(feature = "manga-list")]
-    pub(crate) fn from_i32(value: i32) -> Option<MangaType> {
-        match value {
-            1 => Some(MangaType::Manga),
-            2 => Some(MangaType::Novel),
-            3 => Some(MangaType::OneShot),
-            4 => Some(MangaType::Doujinshi),
-            5 => Some(MangaType::Manhwa),
-            6 => Some(MangaType::Manhua),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn from_str<S: AsRef<str>>(input: S) -> Option<MangaType> {
-        let lowered = input
-            .as_ref()
-            .to_ascii_lowercase();
-
-        match lowered.as_str() {
-            "manga" => Some(MangaType::Manga),
-            "novel" => Some(MangaType::Novel),
-            "one-shot" => Some(MangaType::OneShot),
-            "doujinshi" => Some(MangaType::Doujinshi),
-            "manhwa" => Some(MangaType::Manhwa),
-            "manhua" => Some(MangaType::Manhua),
-            _ => None,
-        }
-    }
 }

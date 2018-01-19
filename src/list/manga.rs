@@ -1,15 +1,120 @@
-//! Contains data structures for operating on a user's manga list.
+//! Contains the required data structures to search for manga on MyAnimeList and
+//! perform operations on a user's manga list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
-use {MangaInfo, MangaType};
 use minidom::Element;
 use request::ListType;
-use SeriesInfoError;
+use {SeriesInfo, SeriesInfoError};
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
 
+/// Represents basic information of a manga series on MyAnimeList.
+#[derive(Debug, Clone)]
+pub struct MangaInfo {
+    /// The ID of the manga series.
+    pub id: u32,
+    /// The title of the anime series.
+    pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
+    /// The type of series that this is.
+    pub series_type: MangaType,
+    /// The number of chapters in the manga series.
+    pub chapters: u32,
+    /// The number of volumes in the manga series.
+    pub volumes: u32,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
+}
+
+impl SeriesInfo for MangaInfo {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<MangaInfo, Error> {
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
+
+        let entry = MangaInfo {
+            id: get_child("id")?.parse()?,
+            title: get_child("title")?,
+            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
+            series_type: {
+                let s_type = get_child("type")?;
+
+                MangaType::from_str(&s_type)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
+            chapters: get_child("chapters")?.parse()?,
+            volumes: get_child("volumes")?.parse()?,
+            start_date: util::parse_str_date(&get_child("start_date")?),
+            end_date: util::parse_str_date(&get_child("end_date")?),
+            image_url: get_child("image")?,
+        };
+
+        Ok(entry)
+    }
+
+    #[doc(hidden)]
+    fn list_type() -> ListType {
+        ListType::Manga
+    }
+}
+
+impl PartialEq for MangaInfo {
+    #[inline]
+    fn eq(&self, other: &MangaInfo) -> bool {
+        self.id == other.id
+    }
+}
+
+/// Represents a manga series type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MangaType {
+    Manga = 1,
+    Novel,
+    /// A manga series with a single chapter.
+    OneShot,
+    /// A self-published manga series.
+    Doujinshi,
+    /// A South Korean manga series.
+    Manhwa,
+    /// A Taiwanese manga series.
+    Manhua,
+}
+
+impl MangaType {
+    fn from_i32(value: i32) -> Option<MangaType> {
+        match value {
+            1 => Some(MangaType::Manga),
+            2 => Some(MangaType::Novel),
+            3 => Some(MangaType::OneShot),
+            4 => Some(MangaType::Doujinshi),
+            5 => Some(MangaType::Manhwa),
+            6 => Some(MangaType::Manhua),
+            _ => None,
+        }
+    }
+
+    fn from_str<S: AsRef<str>>(input: S) -> Option<MangaType> {
+        let lowered = input.as_ref().to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "manga" => Some(MangaType::Manga),
+            "novel" => Some(MangaType::Novel),
+            "one-shot" => Some(MangaType::OneShot),
+            "doujinshi" => Some(MangaType::Doujinshi),
+            "manhwa" => Some(MangaType::Manhwa),
+            "manhua" => Some(MangaType::Manhua),
+            _ => None,
+        }
+    }
+}
+
+/// Contains information about a manga series on a user's list.
 #[derive(Debug, Clone)]
 pub struct MangaEntry {
     /// The general series information.

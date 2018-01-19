@@ -1,16 +1,115 @@
-//! Contains data structures for operating on a user's anime list.
+//! Contains the required data structures to search for anime on MyAnimeList and
+//! perform operations on a user's anime list.
 
-use {AnimeInfo, AnimeType};
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
 use minidom::Element;
 use request::ListType;
-use SeriesInfoError;
+use {SeriesInfo, SeriesInfoError};
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
 
-/// Represents information about an anime series on a user's list.
+/// Represents basic information of an anime series on MyAnimeList.
+#[derive(Debug, Clone)]
+pub struct AnimeInfo {
+    /// The ID of the anime series.
+    pub id: u32,
+    /// The title of the anime series.
+    pub title: String,
+    /// The alternative titles for the series.
+    pub synonyms: Vec<String>,
+    /// The number of episodes in the anime series.
+    pub episodes: u32,
+    /// The type of series that this is.
+    pub series_type: AnimeType,
+    /// The date the series started airing.
+    pub start_date: Option<NaiveDate>,
+    /// The date the series finished airing.
+    pub end_date: Option<NaiveDate>,
+    /// The URL to the cover image of the series.
+    pub image_url: String,
+}
+
+impl SeriesInfo for AnimeInfo {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<AnimeInfo, Error> {
+        let get_child = |name| util::get_xml_child_text(xml_elem, name);
+
+        let entry = AnimeInfo {
+            id: get_child("id")?.parse()?,
+            title: get_child("title")?,
+            synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
+            episodes: get_child("episodes")?.parse()?,
+            series_type: {
+                let s_type = get_child("type")?;
+
+                AnimeType::from_str(&s_type)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
+            start_date: util::parse_str_date(&get_child("start_date")?),
+            end_date: util::parse_str_date(&get_child("end_date")?),
+            image_url: get_child("image")?,
+        };
+
+        Ok(entry)
+    }
+
+    #[doc(hidden)]
+    fn list_type() -> ListType {
+        ListType::Anime
+    }
+}
+
+impl PartialEq for AnimeInfo {
+    #[inline]
+    fn eq(&self, other: &AnimeInfo) -> bool {
+        self.id == other.id
+    }
+}
+
+/// Represents an anime series type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnimeType {
+    /// A series that has aired on TV.
+    TV = 1,
+    /// A series that has never aired on TV.
+    OVA,
+    /// A series depicted in the form of a movie.
+    Movie,
+    /// An extra set of episodes from a series that are usually self-contained.
+    Special,
+    /// A series that has only been presented on the internet.
+    ONA,
+}
+
+impl AnimeType {
+    fn from_i32(value: i32) -> Option<AnimeType> {
+        match value {
+            1 => Some(AnimeType::TV),
+            2 => Some(AnimeType::OVA),
+            3 => Some(AnimeType::Movie),
+            4 => Some(AnimeType::Special),
+            5 => Some(AnimeType::ONA),
+            _ => None,
+        }
+    }
+
+    fn from_str<S: AsRef<str>>(input: S) -> Option<AnimeType> {
+        let lowered = input.as_ref().to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "tv" => Some(AnimeType::TV),
+            "ova" => Some(AnimeType::OVA),
+            "movie" => Some(AnimeType::Movie),
+            "special" => Some(AnimeType::Special),
+            "ona" => Some(AnimeType::ONA),
+            _ => None,
+        }
+    }
+}
+
+/// Contains information about an anime series on a user's list.
 #[derive(Debug, Clone)]
 pub struct AnimeEntry {
     /// The general series information.
