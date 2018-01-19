@@ -25,6 +25,8 @@ pub struct MangaInfo {
     pub chapters: u32,
     /// The number of volumes in the manga series.
     pub volumes: u32,
+    /// The current publishing status of the series.
+    pub publishing_status: PublishingStatus,
     /// The date the series started airing.
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
@@ -50,6 +52,12 @@ impl SeriesInfo for MangaInfo {
             },
             chapters: get_child("chapters")?.parse()?,
             volumes: get_child("volumes")?.parse()?,
+            publishing_status: {
+                let status = get_child("status")?;
+
+                PublishingStatus::from_str(&status)
+                    .ok_or_else(|| PublishingStatusError::UnknownPublishStatus(status))?
+            },
             start_date: util::parse_str_date(&get_child("start_date")?),
             end_date: util::parse_str_date(&get_child("end_date")?),
             image_url: get_child("image")?,
@@ -96,7 +104,7 @@ impl MangaType {
     ///
     /// let type_manga = MangaType::from_i32(1).unwrap();
     /// let type_manhua = MangaType::from_i32(6).unwrap();
-    /// 
+    ///
     /// assert_eq!(type_manga, MangaType::Manga);
     /// assert_eq!(type_manhua, MangaType::Manhua);
     /// ```
@@ -123,6 +131,56 @@ impl MangaType {
             "doujinshi" => Some(MangaType::Doujinshi),
             "manhwa" => Some(MangaType::Manhwa),
             "manhua" => Some(MangaType::Manhua),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Fail, Debug)]
+pub enum PublishingStatusError {
+    #[fail(display = "\"{}\" does not map to a known publishing status", _0)]
+    UnknownPublishStatus(String),
+}
+
+/// Represents the current airing status of a series.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum PublishingStatus {
+    Publishing = 1,
+    Finished,
+    NotYetPublished,
+}
+
+impl PublishingStatus {
+    /// Attempts to convert an i32 to a `PublishingStatus`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mal::list::manga::PublishingStatus;
+    ///
+    /// let status_airing = PublishingStatus::from_i32(1).unwrap();
+    /// let status_notaired = PublishingStatus::from_i32(3).unwrap();
+    ///
+    /// assert_eq!(status_airing, PublishingStatus::Airing);
+    /// assert_eq!(status_notaired, PublishingStatus::NotYetAired);
+    /// ```
+    #[inline]
+    pub fn from_i32(value: i32) -> Option<PublishingStatus> {
+        match value {
+            1 => Some(PublishingStatus::Publishing),
+            2 => Some(PublishingStatus::Finished),
+            3 => Some(PublishingStatus::NotYetPublished),
+            _ => None,
+        }
+    }
+
+    fn from_str<S: AsRef<str>>(input: S) -> Option<PublishingStatus> {
+        let lowered = input.as_ref().to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "publishing" => Some(PublishingStatus::Publishing),
+            "finished" => Some(PublishingStatus::Finished),
+            "not yet published" => Some(PublishingStatus::NotYetPublished),
             _ => None,
         }
     }
@@ -193,6 +251,12 @@ impl ListEntry for MangaEntry {
             },
             chapters: get_child("series_chapters")?.parse()?,
             volumes: get_child("series_volumes")?.parse()?,
+            publishing_status: {
+                let status = get_child("series_status")?;
+
+                PublishingStatus::from_i32(status.parse()?)
+                    .ok_or_else(|| PublishingStatusError::UnknownPublishStatus(status))?
+            },
             start_date: util::parse_str_date(&get_child("series_start")?),
             end_date: util::parse_str_date(&get_child("series_end")?),
             image_url: get_child("series_image")?,
@@ -502,7 +566,7 @@ impl ReadStatus {
     ///
     /// let status_reading = ReadStatus::from_i32(1).unwrap();
     /// let status_plantoread = ReadStatus::from_i32(6).unwrap();
-    /// 
+    ///
     /// assert_eq!(status_reading, ReadStatus::Reading);
     /// assert_eq!(status_plantoread, ReadStatus::PlanToRead);
     /// ```

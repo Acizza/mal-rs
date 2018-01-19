@@ -21,6 +21,8 @@ pub struct AnimeInfo {
     pub synonyms: Vec<String>,
     /// The number of episodes in the anime series.
     pub episodes: u32,
+    /// The current airing status of the series.
+    pub airing_status: AiringStatus,
     /// The type of series that this is.
     pub series_type: AnimeType,
     /// The date the series started airing.
@@ -41,6 +43,12 @@ impl SeriesInfo for AnimeInfo {
             title: get_child("title")?,
             synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
             episodes: get_child("episodes")?.parse()?,
+            airing_status: {
+                let status = get_child("status")?;
+
+                AiringStatus::from_str(&status)
+                    .ok_or_else(|| AiringStatusError::UnknownAirStatus(status))?
+            },
             series_type: {
                 let s_type = get_child("type")?;
 
@@ -123,6 +131,56 @@ impl AnimeType {
     }
 }
 
+#[derive(Fail, Debug)]
+pub enum AiringStatusError {
+    #[fail(display = "\"{}\" does not map to a known airing status", _0)]
+    UnknownAirStatus(String),
+}
+
+/// Represents the current airing status of a series.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AiringStatus {
+    Airing = 1,
+    FinishedAiring,
+    NotYetAired,
+}
+
+impl AiringStatus {
+    /// Attempts to convert an i32 to an `AiringStatus`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mal::list::anime::AiringStatus;
+    ///
+    /// let status_airing = AiringStatus::from_i32(1).unwrap();
+    /// let status_notaired = AiringStatus::from_i32(3).unwrap();
+    /// 
+    /// assert_eq!(status_airing, AiringStatus::Airing);
+    /// assert_eq!(status_notaired, AiringStatus::NotYetAired);
+    /// ```
+    #[inline]
+    pub fn from_i32(value: i32) -> Option<AiringStatus> {
+        match value {
+            1 => Some(AiringStatus::Airing),
+            2 => Some(AiringStatus::FinishedAiring),
+            3 => Some(AiringStatus::NotYetAired),
+            _ => None,
+        }
+    }
+
+    fn from_str<S: AsRef<str>>(input: S) -> Option<AiringStatus> {
+        let lowered = input.as_ref().to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "currently airing" => Some(AiringStatus::Airing),
+            "finished airing" => Some(AiringStatus::FinishedAiring),
+            "not yet aired" => Some(AiringStatus::NotYetAired),
+            _ => None,
+        }
+    }
+}
+
 /// Contains information about an anime series on a user's list.
 #[derive(Debug, Clone)]
 pub struct AnimeEntry {
@@ -181,6 +239,12 @@ impl ListEntry for AnimeEntry {
             title: get_child("series_title")?,
             synonyms: util::split_into_vec(&get_child("series_synonyms")?, "; "),
             episodes: get_child("series_episodes")?.parse()?,
+            airing_status: {
+                let status = get_child("series_status")?;
+
+                AiringStatus::from_i32(status.parse()?)
+                    .ok_or_else(|| AiringStatusError::UnknownAirStatus(status))?
+            },
             series_type: {
                 let s_type = get_child("series_type")?;
 
