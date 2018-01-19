@@ -10,8 +10,14 @@ pub enum ListType {
 
 #[derive(Fail, Debug)]
 pub enum RequestError {
-    #[fail(display = "received bad response code from MAL: {}", _0)] BadResponseCode(StatusCode),
-    #[fail(display = "error sending request to MAL: {}", _0)] HttpError(#[cause] reqwest::Error),
+    #[fail(display = "received bad response code from MAL: {}", _0)]
+    BadResponseCode(StatusCode),
+
+    #[fail(display = "error sending request to MAL: {}", _0)]
+    HttpError(#[cause] reqwest::Error),
+
+    #[fail(display = "failed to read response text: {}", _0)]
+    ReadResponse(#[cause] reqwest::Error),
 }
 
 pub type ID = u32;
@@ -32,7 +38,7 @@ pub enum Request<'a> {
 impl<'a> Request<'a> {
     pub const BASE_URL: &'static str = "https://myanimelist.net";
 
-    pub fn send(self, mal: &MAL) -> Result<Response, RequestError> {
+    fn send_req(self, mal: &MAL) -> Result<Response, RequestError> {
         lazy_static! {
             static ref BASE_URL: Url = Url::parse(Request::BASE_URL).unwrap();
         }
@@ -102,6 +108,12 @@ impl<'a> Request<'a> {
                 mal.client.get(url).with_auth(mal).send_req()
             }
         }
+    }
+
+    pub fn send(self, mal: &MAL) -> Result<String, RequestError> {
+        self.send_req(mal)?
+            .text()
+            .map_err(RequestError::ReadResponse)
     }
 }
 

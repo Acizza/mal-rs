@@ -63,6 +63,15 @@ use request::{ListType, Request, RequestError};
 use reqwest::StatusCode;
 use std::convert::Into;
 
+#[derive(Fail, Debug)]
+pub enum MALError {
+    #[fail(display = "{}", _0)]
+    Request(#[cause] ::request::RequestError),
+
+    #[fail(display = "internal error: {}", _0)]
+    Internal(::failure::Error),
+}
+
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
 #[derive(Debug)]
 pub struct MAL {
@@ -107,7 +116,7 @@ impl MAL {
     /// ```
     #[cfg(feature = "anime")]
     #[inline]
-    pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, Error> {
+    pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, MALError> {
         self.search::<AnimeInfo>(name)
     }
 
@@ -123,24 +132,29 @@ impl MAL {
     /// ```
     #[cfg(feature = "manga")]
     #[inline]
-    pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, Error> {
+    pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, MALError> {
         self.search::<MangaInfo>(name)
     }
 
-    fn search<SI: SeriesInfo>(&self, name: &str) -> Result<Vec<SI>, Error> {
-        let mut resp = match Request::Search(name, SI::list_type()).send(self) {
+    fn search<SI: SeriesInfo>(&self, name: &str) -> Result<Vec<SI>, MALError> {
+        let resp = match Request::Search(name, SI::list_type()).send(self) {
             Ok(resp) => resp,
             Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
                 return Ok(Vec::new());
             },
-            Err(err) => bail!(err),
+            Err(err) => return Err(MALError::Request(err)),
         };
 
-        let root: Element = resp.text()?.parse().map_err(SyncFailure::new)?;
+        let root: Element = resp
+            .parse()
+            .map_err(|e| MALError::Internal(SyncFailure::new(e).into()))?;
+
         let mut entries = Vec::new();
 
         for child in root.children() {
-            let entry = SI::parse_search_result(child)?;
+            let entry = SI::parse_search_result(child)
+                .map_err(MALError::Internal)?;
+
             entries.push(entry);
         }
 
@@ -181,11 +195,11 @@ impl MAL {
     /// assert_eq!(valid, false);
     /// ```
     #[inline]
-    pub fn verify_credentials(&self) -> Result<bool, RequestError> {
+    pub fn verify_credentials(&self) -> Result<bool, MALError> {
         match Request::VerifyCredentials.send(self) {
             Ok(_) => Ok(true),
             Err(RequestError::BadResponseCode(StatusCode::Unauthorized)) => Ok(false),
-            Err(err) => Err(err),
+            Err(err) => Err(MALError::Request(err)),
         }
     }
 }
@@ -197,10 +211,4 @@ pub trait SeriesInfo where Self: Sized {
 
     #[doc(hidden)]
     fn list_type() -> ListType;
-}
-
-#[derive(Fail, Debug)]
-pub enum SeriesInfoError {
-    #[fail(display = "no series type named \"{}\" found", _0)]
-    UnknownSeriesType(String),
 }

@@ -1,15 +1,24 @@
 use chrono::NaiveDate;
 use minidom::Element;
+use std::str::FromStr;
 
 #[derive(Fail, Debug)]
-#[fail(display = "no XML node named '{}'", _0)]
-pub struct MissingXMLNode(pub String);
+pub enum ParseXMLError {
+    #[fail(display = "no XML node named \"{}\"", _0)]
+    MissingXMLNode(String),
+    
+    #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
+    ConversionFailed(String),
+}
 
-pub fn get_xml_child_text(elem: &Element, name: &str) -> Result<String, MissingXMLNode> {
-    elem.children()
+pub fn parse_xml_child<T: FromStr>(elem: &Element, name: &str) -> Result<T, ParseXMLError> {
+    let text = elem.children()
         .find(|c| c.name() == name)
-        .map(|c| c.text())
-        .ok_or_else(|| MissingXMLNode(name.into()))
+        .ok_or_else(|| ParseXMLError::MissingXMLNode(name.into()))?
+        .text();
+
+    text.parse::<T>()
+        .map_err(|_| ParseXMLError::ConversionFailed(name.into()))
 }
 
 pub fn parse_str_date(date: &str) -> Option<NaiveDate> {

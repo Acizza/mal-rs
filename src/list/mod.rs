@@ -86,8 +86,8 @@
 //! mal.anime_list().update(&mut entry).unwrap();
 //! ```
 
-use failure::{Error, ResultExt, SyncFailure};
-use MAL;
+use failure::{Error, SyncFailure};
+use {MAL, MALError};
 use minidom::Element;
 use request::{ListType, Request};
 use std::fmt::Debug;
@@ -190,23 +190,29 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// println!("{:?}", list.user_info);
     /// println!("{:?}", list.entries);
     /// ```
-    pub fn read(&self) -> Result<ListEntries<E>, Error> {
+    pub fn read(&self) -> Result<ListEntries<E>, MALError> {
         let resp = Request::List(&self.mal.username, E::list_type())
-            .send(self.mal)?
-            .text()?;
+            .send(self.mal)
+            .map_err(MALError::Request)?;
 
-        let root: Element = resp.parse().map_err(SyncFailure::new)?;
+        let root: Element = resp
+            .parse()
+            .map_err(|e| MALError::Internal(SyncFailure::new(e).into()))?;
+
         let mut children = root.children();
 
         let user_info = {
-            let elem = children.next().ok_or(ListError::NoUserInfoFound)?;
-            UserInfo::parse(elem).context("failed to parse user info")?
+            let elem = children
+                .next()
+                .ok_or_else(|| MALError::Internal(ListError::NoUserInfoFound.into()))?;
+
+            UserInfo::parse(elem).map_err(MALError::Internal)?
         };
 
         let mut entries = Vec::new();
 
         for child in children {
-            let entry = E::parse(child)?;
+            let entry = E::parse(child).map_err(MALError::Internal)?;
             entries.push(entry);
         }
 
@@ -249,7 +255,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// mal.anime_list().add(&mut entry).unwrap();
     /// ```
     #[inline]
-    pub fn add(&self, entry: &mut E) -> Result<(), Error> {
+    pub fn add(&self, entry: &mut E) -> Result<(), MALError> {
         self.add_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
         Ok(())
@@ -278,11 +284,12 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Add an entry with an id of 4224 (Toradora) to the user's anime list
     /// mal.anime_list().add_id(4224, &mut values).unwrap();
     /// ```
-    pub fn add_id(&self, id: u32, values: &mut E::Values) -> Result<(), Error> {
-        let body = values.generate_xml()?;
+    pub fn add_id(&self, id: u32, values: &mut E::Values) -> Result<(), MALError> {
+        let body = values.generate_xml().map_err(MALError::Internal)?;
 
         Request::Add(id, E::list_type(), &body)
-            .send(self.mal)?;
+            .send(self.mal)
+            .map_err(MALError::Request)?;
 
         values.reset_changed_fields();
         Ok(())
@@ -324,7 +331,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// anime_list.update(&mut toradora).unwrap();
     /// ```
     #[inline]
-    pub fn update(&self, entry: &mut E) -> Result<(), Error> {
+    pub fn update(&self, entry: &mut E) -> Result<(), MALError> {
         self.update_id(entry.id(), entry.values_mut())?;
         entry.set_last_updated_time();
         Ok(())
@@ -354,11 +361,12 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Update the entry with an id of 4224 (Toradora) on the user's anime list
     /// mal.anime_list().update_id(4224, &mut values).unwrap();
     /// ```
-    pub fn update_id(&self, id: u32, values: &mut E::Values) -> Result<(), Error> {
-        let body = values.generate_xml()?;
+    pub fn update_id(&self, id: u32, values: &mut E::Values) -> Result<(), MALError> {
+        let body = values.generate_xml().map_err(MALError::Internal)?;
 
         Request::Update(id, E::list_type(), &body)
-            .send(self.mal)?;
+            .send(self.mal)
+            .map_err(MALError::Request)?;
 
         values.reset_changed_fields();
         Ok(())
@@ -399,7 +407,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// anime_list.delete(&toradora).unwrap();
     /// ```
     #[inline]
-    pub fn delete(&self, entry: &E) -> Result<(), Error> {
+    pub fn delete(&self, entry: &E) -> Result<(), MALError> {
         self.delete_id(entry.id())
     }
 
@@ -420,9 +428,10 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
     #[inline]
-    pub fn delete_id(&self, id: u32) -> Result<(), Error> {
+    pub fn delete_id(&self, id: u32) -> Result<(), MALError> {
         Request::Delete(id, E::list_type())
-            .send(self.mal)?;
+            .send(self.mal)
+            .map_err(MALError::Request)?;
         
         Ok(())
     }
