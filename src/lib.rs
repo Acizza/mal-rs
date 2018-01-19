@@ -181,11 +181,11 @@ impl MAL {
     /// assert_eq!(valid, false);
     /// ```
     #[inline]
-    pub fn verify_credentials(&self) -> Result<bool, Error> {
+    pub fn verify_credentials(&self) -> Result<bool, RequestError> {
         match Request::VerifyCredentials.send(self) {
             Ok(_) => Ok(true),
             Err(RequestError::BadResponseCode(StatusCode::Unauthorized)) => Ok(false),
-            Err(err) => bail!(err),
+            Err(err) => Err(err),
         }
     }
 }
