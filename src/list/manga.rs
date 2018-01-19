@@ -2,9 +2,10 @@
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
-use MangaInfo;
+use {MangaInfo, MangaType};
 use minidom::Element;
 use request::ListType;
+use SeriesInfoError;
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
@@ -65,6 +66,12 @@ impl ListEntry for MangaEntry {
             id: get_child("series_mangadb_id")?.parse()?,
             title: get_child("series_title")?,
             synonyms: util::split_into_vec(&get_child("series_synonyms")?, "; "),
+            series_type: {
+                let s_type = get_child("series_type")?;
+
+                MangaType::from_i32(s_type.parse()?)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
             chapters: get_child("series_chapters")?.parse()?,
             volumes: get_child("series_volumes")?.parse()?,
             start_date: util::parse_str_date(&get_child("series_start")?),

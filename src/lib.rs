@@ -198,6 +198,12 @@ pub trait SeriesInfo where Self: Sized {
     fn list_type() -> ListType;
 }
 
+#[derive(Fail, Debug)]
+pub enum SeriesInfoError {
+    #[fail(display = "no series type named \"{}\" found", _0)]
+    UnknownSeriesType(String),
+}
+
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
 pub struct AnimeInfo {
@@ -209,6 +215,8 @@ pub struct AnimeInfo {
     pub synonyms: Vec<String>,
     /// The number of episodes in the anime series.
     pub episodes: u32,
+    /// The type of series that this is.
+    pub series_type: AnimeType,
     /// The date the series started airing.
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
@@ -227,6 +235,12 @@ impl SeriesInfo for AnimeInfo {
             title: get_child("title")?,
             synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
             episodes: get_child("episodes")?.parse()?,
+            series_type: {
+                let s_type = get_child("type")?;
+
+                AnimeType::from_str(&s_type)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
             start_date: util::parse_str_date(&get_child("start_date")?),
             end_date: util::parse_str_date(&get_child("end_date")?),
             image_url: get_child("image")?,
@@ -248,6 +262,50 @@ impl PartialEq for AnimeInfo {
     }
 }
 
+/// Represents an anime series type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnimeType {
+    /// A series that has aired on TV.
+    TV = 1,
+    /// A series that has never aired on TV.
+    OVA,
+    /// A series depicted in the form of a movie.
+    Movie,
+    /// An extra set of episodes from a series that are usually self-contained.
+    Special,
+    /// A series that has only been presented on the internet.
+    ONA,
+}
+
+impl AnimeType {
+    #[cfg(feature = "anime-list")]
+    pub(crate) fn from_i32(value: i32) -> Option<AnimeType> {
+        match value {
+            1 => Some(AnimeType::TV),
+            2 => Some(AnimeType::OVA),
+            3 => Some(AnimeType::Movie),
+            4 => Some(AnimeType::Special),
+            5 => Some(AnimeType::ONA),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn from_str<S: AsRef<str>>(input: S) -> Option<AnimeType> {
+        let lowered = input
+            .as_ref()
+            .to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "tv" => Some(AnimeType::TV),
+            "ova" => Some(AnimeType::OVA),
+            "movie" => Some(AnimeType::Movie),
+            "special" => Some(AnimeType::Special),
+            "ona" => Some(AnimeType::ONA),
+            _ => None,
+        }
+    }
+}
+
 /// Represents basic information of a manga series on MyAnimeList.
 #[derive(Debug, Clone)]
 pub struct MangaInfo {
@@ -257,6 +315,8 @@ pub struct MangaInfo {
     pub title: String,
     /// The alternative titles for the series.
     pub synonyms: Vec<String>,
+    /// The type of series that this is.
+    pub series_type: MangaType,
     /// The number of chapters in the manga series.
     pub chapters: u32,
     /// The number of volumes in the manga series.
@@ -278,6 +338,12 @@ impl SeriesInfo for MangaInfo {
             id: get_child("id")?.parse()?,
             title: get_child("title")?,
             synonyms: util::split_into_vec(&get_child("synonyms")?, "; "),
+            series_type: {
+                let s_type = get_child("type")?;
+
+                MangaType::from_str(&s_type)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
             chapters: get_child("chapters")?.parse()?,
             volumes: get_child("volumes")?.parse()?,
             start_date: util::parse_str_date(&get_child("start_date")?),
@@ -298,5 +364,51 @@ impl PartialEq for MangaInfo {
     #[inline]
     fn eq(&self, other: &MangaInfo) -> bool {
         self.id == other.id
+    }
+}
+
+/// Represents a manga series type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MangaType {
+    Manga = 1,
+    Novel,
+    /// A manga series with a single chapter.
+    OneShot,
+    /// A self-published manga series.
+    Doujinshi,
+    /// A South Korean manga series.
+    Manhwa,
+    /// A Taiwanese manga series.
+    Manhua,
+}
+
+impl MangaType {
+    #[cfg(feature = "manga-list")]
+    pub(crate) fn from_i32(value: i32) -> Option<MangaType> {
+        match value {
+            1 => Some(MangaType::Manga),
+            2 => Some(MangaType::Novel),
+            3 => Some(MangaType::OneShot),
+            4 => Some(MangaType::Doujinshi),
+            5 => Some(MangaType::Manhwa),
+            6 => Some(MangaType::Manhua),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn from_str<S: AsRef<str>>(input: S) -> Option<MangaType> {
+        let lowered = input
+            .as_ref()
+            .to_ascii_lowercase();
+
+        match lowered.as_str() {
+            "manga" => Some(MangaType::Manga),
+            "novel" => Some(MangaType::Novel),
+            "one-shot" => Some(MangaType::OneShot),
+            "doujinshi" => Some(MangaType::Doujinshi),
+            "manhwa" => Some(MangaType::Manhwa),
+            "manhua" => Some(MangaType::Manhua),
+            _ => None,
+        }
     }
 }

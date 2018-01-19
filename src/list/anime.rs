@@ -1,10 +1,11 @@
 //! Contains data structures for operating on a user's anime list.
 
-use AnimeInfo;
+use {AnimeInfo, AnimeType};
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::{Error, SyncFailure};
 use minidom::Element;
 use request::ListType;
+use SeriesInfoError;
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 use util;
@@ -67,6 +68,12 @@ impl ListEntry for AnimeEntry {
             title: get_child("series_title")?,
             synonyms: util::split_into_vec(&get_child("series_synonyms")?, "; "),
             episodes: get_child("series_episodes")?.parse()?,
+            series_type: {
+                let s_type = get_child("series_type")?;
+
+                AnimeType::from_i32(s_type.parse()?)
+                    .ok_or_else(|| SeriesInfoError::UnknownSeriesType(s_type))?
+            },
             start_date: util::parse_str_date(&get_child("series_start")?),
             end_date: util::parse_str_date(&get_child("series_end")?),
             image_url: get_child("series_image")?,
