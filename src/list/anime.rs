@@ -84,7 +84,21 @@ pub enum AnimeType {
 }
 
 impl AnimeType {
-    fn from_i32(value: i32) -> Option<AnimeType> {
+    /// Attempts to convert an i32 to an `AnimeType`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mal::list::anime::AnimeType;
+    ///
+    /// let type_tv = AnimeType::from_i32(1).unwrap();
+    /// let type_ona = AnimeType::from_i32(5).unwrap();
+    /// 
+    /// assert_eq!(type_tv, AnimeType::TV);
+    /// assert_eq!(type_ona, AnimeType::ONA);
+    /// ```
+    #[inline]
+    pub fn from_i32(value: i32) -> Option<AnimeType> {
         match value {
             1 => Some(AnimeType::TV),
             2 => Some(AnimeType::OVA),

@@ -87,7 +87,21 @@ pub enum MangaType {
 }
 
 impl MangaType {
-    fn from_i32(value: i32) -> Option<MangaType> {
+    /// Attempts to convert an i32 to a `MangaType`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mal::list::manga::MangaType;
+    ///
+    /// let type_manga = MangaType::from_i32(1).unwrap();
+    /// let type_manhua = MangaType::from_i32(6).unwrap();
+    /// 
+    /// assert_eq!(type_manga, MangaType::Manga);
+    /// assert_eq!(type_manhua, MangaType::Manhua);
+    /// ```
+    #[inline]
+    pub fn from_i32(value: i32) -> Option<MangaType> {
         match value {
             1 => Some(MangaType::Manga),
             2 => Some(MangaType::Novel),
