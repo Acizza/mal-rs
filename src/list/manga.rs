@@ -158,11 +158,11 @@ impl PublishingStatus {
     /// ```
     /// use mal::list::manga::PublishingStatus;
     ///
-    /// let status_airing = PublishingStatus::from_i32(1).unwrap();
-    /// let status_notaired = PublishingStatus::from_i32(3).unwrap();
+    /// let status_publishing = PublishingStatus::from_i32(1).unwrap();
+    /// let status_notpublished = PublishingStatus::from_i32(3).unwrap();
     ///
-    /// assert_eq!(status_airing, PublishingStatus::Airing);
-    /// assert_eq!(status_notaired, PublishingStatus::NotYetAired);
+    /// assert_eq!(status_publishing, PublishingStatus::Publishing);
+    /// assert_eq!(status_notpublished, PublishingStatus::NotYetPublished);
     /// ```
     #[inline]
     pub fn from_i32(value: i32) -> Option<PublishingStatus> {
