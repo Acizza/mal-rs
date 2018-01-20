@@ -446,10 +446,13 @@ pub struct ListEntries<E: ListEntry> {
     pub entries: Vec<E>,
 }
 
-/// Represents info about a user's list.
-pub trait UserInfo where Self: Sized {
+/// Used for types that contain basic series information.
+pub trait SeriesInfo where Self: Sized {
     #[doc(hidden)]
-    fn parse(xml_elem: &Element) -> Result<Self, Error>;
+    fn parse_search_result(xml_elem: &Element) -> Result<Self, Error>;
+
+    #[doc(hidden)]
+    fn list_type() -> ListType;
 }
 
 /// Represents an entry on a user's list.
@@ -480,6 +483,12 @@ pub trait EntryValues {
 
     #[doc(hidden)]
     fn reset_changed_fields(&mut self);
+}
+
+/// Represents info about a user's list.
+pub trait UserInfo where Self: Sized {
+    #[doc(hidden)]
+    fn parse(xml_elem: &Element) -> Result<Self, Error>;
 }
 
 #[derive(Debug, Default, Clone)]

@@ -56,10 +56,10 @@ use list::anime::{AnimeInfo, AnimeEntry};
 #[cfg(feature = "manga")]
 use list::manga::{MangaInfo, MangaEntry};
 
-use failure::{Error, SyncFailure};
-use list::List;
+use failure::SyncFailure;
+use list::{List, SeriesInfo};
 use minidom::Element;
-use request::{ListType, Request, RequestError};
+use request::{Request, RequestError};
 use reqwest::StatusCode;
 use std::convert::Into;
 
@@ -202,13 +202,4 @@ impl MAL {
             Err(err) => Err(MALError::Request(err)),
         }
     }
-}
-
-/// Represents series information for an anime or manga series.
-pub trait SeriesInfo where Self: Sized {
-    #[doc(hidden)]
-    fn parse_search_result(xml_elem: &Element) -> Result<Self, Error>;
-
-    #[doc(hidden)]
-    fn list_type() -> ListType;
 }
