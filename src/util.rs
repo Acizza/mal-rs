@@ -6,7 +6,7 @@ use std::str::FromStr;
 pub enum ParseXMLError {
     #[fail(display = "no XML node named \"{}\"", _0)]
     MissingXMLNode(String),
-    
+
     #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
     ConversionFailed(String),
 }
@@ -15,7 +15,9 @@ pub fn parse_xml_child<T: FromStr>(elem: &Element, name: &str) -> Result<T, Pars
     let text = elem.children()
         .find(|c| c.name() == name)
         .ok_or_else(|| ParseXMLError::MissingXMLNode(name.into()))?
-        .text();
+        .texts()
+        .next()
+        .unwrap_or("");
 
     text.parse::<T>()
         .map_err(|_| ParseXMLError::ConversionFailed(name.into()))
