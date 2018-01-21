@@ -2,7 +2,7 @@
 //! perform operations on a user's manga list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use failure::{Error, SyncFailure};
+use failure::Error;
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
@@ -321,37 +321,16 @@ impl_tracker_getset!(MangaValues,
     [rereading, set_rereading, "current re-reading status of the series"]: bool,
 );
 
-impl EntryValues for MangaValues {
-    #[doc(hidden)]
-    fn generate_xml(&self) -> Result<String, Error> {
-        generate_response_xml!(self,
-            chapter(num): "chapter" => num.to_string(),
-            volume(vol): "volume" => vol.to_string(),
-            status(status): "status" => (*status as i32).to_string(),
-            score(score): "score" => score.to_string(),
-            start_date(date): "date_start" => util::date_to_str(*date),
-            finish_date(date): "date_finish" => util::date_to_str(*date),
-            rereading(v): "enable_rereading" => (*v as u8).to_string(),
-            tags(t): "tags" => util::concat_by_delimeter(t, ',')
-        )
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn reset_changed_fields(&mut self) {
-        reset_changed_fields!(
-            self,
-            chapter,
-            volume,
-            status,
-            score,
-            start_date,
-            finish_date,
-            rereading,
-            tags
-        );
-    }
-}
+impl_entryvalues!(MangaValues,
+    chapter(num): "chapter" => num.to_string(),
+    volume(vol): "volume" => vol.to_string(),
+    status(status): "status" => (*status as i32).to_string(),
+    score(score): "score" => score.to_string(),
+    start_date(date): "date_start" => util::date_to_str(*date),
+    finish_date(date): "date_finish" => util::date_to_str(*date),
+    rereading(v): "enable_rereading" => (*v as u8).to_string(),
+    tags(t): "tags" => util::concat_by_delimeter(t, ','),
+);
 
 /// Contains list statistics and user information.
 #[derive(Debug, Clone)]

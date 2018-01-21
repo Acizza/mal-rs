@@ -2,7 +2,7 @@
 //! perform operations on a user's anime list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use failure::{Error, SyncFailure};
+use failure::Error;
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
@@ -316,35 +316,15 @@ impl_tracker_getset!(AnimeValues,
     [rewatching, set_rewatching, "current rewatch status of the series"]: bool,
 );
 
-impl EntryValues for AnimeValues {
-    #[doc(hidden)]
-    fn generate_xml(&self) -> Result<String, Error> {
-        generate_response_xml!(self,
-            watched_episodes(num): "episode" => num.to_string(),
-            status(status): "status" => (*status as i32).to_string(),
-            start_date(date): "date_start" => util::date_to_str(*date),
-            finish_date(date): "date_finish" => util::date_to_str(*date),
-            score(score): "score" => score.to_string(),
-            rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
-            tags(t): "tags" => util::concat_by_delimeter(t, ',')
-        )
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn reset_changed_fields(&mut self) {
-        reset_changed_fields!(
-            self,
-            watched_episodes,
-            start_date,
-            finish_date,
-            status,
-            score,
-            rewatching,
-            tags
-        );
-    }
-}
+impl_entryvalues!(AnimeValues,
+    watched_episodes(num): "episode" => num.to_string(),
+    status(status): "status" => (*status as i32).to_string(),
+    start_date(date): "date_start" => util::date_to_str(*date),
+    finish_date(date): "date_finish" => util::date_to_str(*date),
+    score(score): "score" => score.to_string(),
+    rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
+    tags(t): "tags" => util::concat_by_delimeter(t, ','),
+);
 
 /// Contains list statistics and user information.
 #[derive(Debug, Clone)]

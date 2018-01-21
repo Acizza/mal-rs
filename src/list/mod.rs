@@ -93,30 +93,6 @@ use request::{ListType, Request};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-macro_rules! generate_response_xml {
-    ($struct:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr),+) => {{
-        let mut entry = Element::bare("entry");
-
-        $(if $struct.$field.changed {
-            let $val_name = &$struct.$field.value;
-
-            let mut elem = Element::bare($xml_name);
-            elem.append_text_node($xml_val);
-            entry.append_child(elem);
-        })+
-
-        let mut buffer = Vec::new();
-        entry.write_to(&mut buffer).map_err(SyncFailure::new)?;
-
-        Ok(String::from_utf8(buffer)?)
-    }};
-}
-
-// Resets the changed status of struct fields with a ChangeTracker type.
-macro_rules! reset_changed_fields {
-    ($struct:ident, $($name:ident),+) => ($($struct.$name.changed = false;)+);
-}
-
 // Generates getter and setter methods for struct fields with a ChangeTracker type.
 macro_rules! impl_tracker_getset {
     ($name:ident, $([$field:ident, $setter:ident, $verb:expr]: $field_type:ty,)+) => {
@@ -170,6 +146,30 @@ macro_rules! gen_list_field_enum {
                     $($field_str => Some($name::$field),)+
                     _ => None,
                 }
+            }
+        }
+    };
+}
+
+// Convenience macro to implement the EntryValues trait without having to specify
+// struct fields multiple times
+macro_rules! impl_entryvalues {
+    ($struct:ident, $($field:ident($val_name:ident): $xml_name:expr => $xml_val:expr,)+) => {
+        impl EntryValues for $struct {
+            #[doc(hidden)]
+            fn add_changed_values(&self, xml_elem: &mut Element) {
+                $(if self.$field.changed {
+                    let $val_name = &self.$field.value;
+
+                    let mut elem = Element::bare($xml_name);
+                    elem.append_text_node($xml_val);
+                    xml_elem.append_child(elem);
+                })+
+            }
+
+            #[doc(hidden)]
+            fn reset_changed_fields(&mut self) {
+                $(self.$field.changed = false;)+
             }
         }
     };
@@ -538,7 +538,18 @@ pub trait ListEntry where Self: Sized {
 /// Represents values on a user's list that can be set.
 pub trait EntryValues {
     #[doc(hidden)]
-    fn generate_xml(&self) -> Result<String, Error>;
+    fn generate_xml(&self) -> Result<String, Error> {
+        let mut entry = Element::bare("entry");
+        self.add_changed_values(&mut entry);
+
+        let mut buffer = Vec::new();
+        entry.write_to(&mut buffer).map_err(SyncFailure::new)?;
+
+        Ok(String::from_utf8(buffer)?)
+    }
+
+    #[doc(hidden)]
+    fn add_changed_values(&self, xml_elem: &mut Element);
 
     #[doc(hidden)]
     fn reset_changed_fields(&mut self);
