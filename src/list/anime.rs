@@ -83,6 +83,9 @@ impl PartialEq for AnimeInfo {
 }
 
 gen_list_field_enum!(AnimeType,
+    ["A unknown series type (usually because it hasn't aired yet)."]
+    Unknown = [0, ""],
+
     ["A series that has aired on TV."]
     TV = [1, "tv"],
 
@@ -97,6 +100,9 @@ gen_list_field_enum!(AnimeType,
 
     ["A series that has only been presented on the internet."]
     ONA = [5, "ona"],
+
+    ["A music video."]
+    Music = [6, "music"],
 );
 
 gen_list_field_enum!(AiringStatus,
