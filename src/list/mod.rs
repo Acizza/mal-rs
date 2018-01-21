@@ -143,6 +143,38 @@ macro_rules! impl_tracker_getset {
     };
 }
 
+// Generates enums that can be parsed from search results and a user's list
+macro_rules! gen_list_field_enum {
+    ($name:ident, $([$field_doc:expr] $field:ident = [$field_index:expr, $field_str:expr],)+) => {
+        #[derive(Debug, Copy, Clone, PartialEq)]
+        pub enum $name {
+            $(
+            #[doc = $field_doc]
+            $field = $field_index,
+            )+
+        }
+
+        impl $name {
+            #[inline]
+            pub fn from_i32(value: i32) -> Option<$name> {
+                match value {
+                    $($field_index => Some($name::$field),)+
+                    _ => None,
+                }
+            }
+
+            fn from_str<S: AsRef<str>>(input: S) -> Option<$name> {
+                let lowered = input.as_ref().to_ascii_lowercase();
+
+                match lowered.as_str() {
+                    $($field_str => Some($name::$field),)+
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
 #[cfg(feature = "anime")]
 pub mod anime;
 #[cfg(feature = "manga")]

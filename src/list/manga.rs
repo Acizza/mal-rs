@@ -88,106 +88,33 @@ impl PartialEq for MangaInfo {
     }
 }
 
-/// Represents a manga series type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum MangaType {
-    Manga = 1,
-    Novel,
-    /// A manga series with a single chapter.
-    OneShot,
-    /// A self-published manga series.
-    Doujinshi,
-    /// A South Korean manga series.
-    Manhwa,
-    /// A Taiwanese manga series.
-    Manhua,
-}
+gen_list_field_enum!(MangaType,
+    ["A traditional manga series."]
+    Manga = [1, "manga"],
 
-impl MangaType {
-    /// Attempts to convert an i32 to a `MangaType`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::manga::MangaType;
-    ///
-    /// let type_manga = MangaType::from_i32(1).unwrap();
-    /// let type_manhua = MangaType::from_i32(6).unwrap();
-    ///
-    /// assert_eq!(type_manga, MangaType::Manga);
-    /// assert_eq!(type_manhua, MangaType::Manhua);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<MangaType> {
-        match value {
-            1 => Some(MangaType::Manga),
-            2 => Some(MangaType::Novel),
-            3 => Some(MangaType::OneShot),
-            4 => Some(MangaType::Doujinshi),
-            5 => Some(MangaType::Manhwa),
-            6 => Some(MangaType::Manhua),
-            _ => None,
-        }
-    }
+    ["A type of manga that usually has less than 500 pages and few illustrations."]
+    Novel = [2, "novel"],
 
-    fn from_str<S: AsRef<str>>(input: S) -> Option<MangaType> {
-        let lowered = input.as_ref().to_ascii_lowercase();
+    ["A manga series with a single chapter."]
+    OneShot = [3, "one-shot"],
 
-        match lowered.as_str() {
-            "manga" => Some(MangaType::Manga),
-            "novel" => Some(MangaType::Novel),
-            "one-shot" => Some(MangaType::OneShot),
-            "doujinshi" => Some(MangaType::Doujinshi),
-            "manhwa" => Some(MangaType::Manhwa),
-            "manhua" => Some(MangaType::Manhua),
-            _ => None,
-        }
-    }
-}
+    ["A South Korean manga series."]
+    Manhwa = [4, "manhwa"],
 
-/// Represents the current airing status of a series.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PublishingStatus {
-    Publishing = 1,
-    Finished,
-    NotYetPublished,
-}
+    ["A Chinese / Taiwanese manga series."]
+    Manhua = [5, "manhua"],
+);
 
-impl PublishingStatus {
-    /// Attempts to convert an i32 to a `PublishingStatus`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::manga::PublishingStatus;
-    ///
-    /// let status_publishing = PublishingStatus::from_i32(1).unwrap();
-    /// let status_notpublished = PublishingStatus::from_i32(3).unwrap();
-    ///
-    /// assert_eq!(status_publishing, PublishingStatus::Publishing);
-    /// assert_eq!(status_notpublished, PublishingStatus::NotYetPublished);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<PublishingStatus> {
-        match value {
-            1 => Some(PublishingStatus::Publishing),
-            2 => Some(PublishingStatus::Finished),
-            3 => Some(PublishingStatus::NotYetPublished),
-            _ => None,
-        }
-    }
+gen_list_field_enum!(PublishingStatus,
+    ["A manga that is currently publishing."]
+    Publishing = [1, "publishing"],
 
-    fn from_str<S: AsRef<str>>(input: S) -> Option<PublishingStatus> {
-        let lowered = input.as_ref().to_ascii_lowercase();
+    ["A manga series that has finished publishing."]
+    Finished = [2, "finished"],
 
-        match lowered.as_str() {
-            "publishing" => Some(PublishingStatus::Publishing),
-            "finished" => Some(PublishingStatus::Finished),
-            "not yet published" => Some(PublishingStatus::NotYetPublished),
-            _ => None,
-        }
-    }
-}
+    ["A manga series that hasn't begun being published yet."]
+    NotYetPublished = [3, "not yet published"],
+);
 
 /// Contains information about a manga series on a user's list.
 #[derive(Debug, Clone)]

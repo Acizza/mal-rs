@@ -82,104 +82,33 @@ impl PartialEq for AnimeInfo {
     }
 }
 
-/// Represents an anime series type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum AnimeType {
-    /// A series that has aired on TV.
-    TV = 1,
-    /// A series that has never aired on TV.
-    OVA,
-    /// A series depicted in the form of a movie.
-    Movie,
-    /// An extra set of episodes from a series that are usually self-contained.
-    Special,
-    /// A series that has only been presented on the internet.
-    ONA,
-}
+gen_list_field_enum!(AnimeType,
+    ["A series that has aired on TV."]
+    TV = [1, "tv"],
 
-impl AnimeType {
-    /// Attempts to convert an i32 to an `AnimeType`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::anime::AnimeType;
-    ///
-    /// let type_tv = AnimeType::from_i32(1).unwrap();
-    /// let type_ona = AnimeType::from_i32(5).unwrap();
-    ///
-    /// assert_eq!(type_tv, AnimeType::TV);
-    /// assert_eq!(type_ona, AnimeType::ONA);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<AnimeType> {
-        match value {
-            1 => Some(AnimeType::TV),
-            2 => Some(AnimeType::OVA),
-            3 => Some(AnimeType::Movie),
-            4 => Some(AnimeType::Special),
-            5 => Some(AnimeType::ONA),
-            _ => None,
-        }
-    }
+    ["A series that has never aired on TV."]
+    OVA = [2, "ova"],
 
-    fn from_str<S: AsRef<str>>(input: S) -> Option<AnimeType> {
-        let lowered = input.as_ref().to_ascii_lowercase();
+    ["A series depicted in the form of a movie."]
+    Movie = [3, "movie"],
 
-        match lowered.as_str() {
-            "tv" => Some(AnimeType::TV),
-            "ova" => Some(AnimeType::OVA),
-            "movie" => Some(AnimeType::Movie),
-            "special" => Some(AnimeType::Special),
-            "ona" => Some(AnimeType::ONA),
-            _ => None,
-        }
-    }
-}
+    ["An extra set of episodes from a series that are usually self-contained."]
+    Special = [4, "special"],
 
-/// Represents the current airing status of a series.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AiringStatus {
-    Airing = 1,
-    FinishedAiring,
-    NotYetAired,
-}
+    ["A series that has only been presented on the internet."]
+    ONA = [5, "ona"],
+);
 
-impl AiringStatus {
-    /// Attempts to convert an i32 to an `AiringStatus`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::anime::AiringStatus;
-    ///
-    /// let status_airing = AiringStatus::from_i32(1).unwrap();
-    /// let status_notaired = AiringStatus::from_i32(3).unwrap();
-    ///
-    /// assert_eq!(status_airing, AiringStatus::Airing);
-    /// assert_eq!(status_notaired, AiringStatus::NotYetAired);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<AiringStatus> {
-        match value {
-            1 => Some(AiringStatus::Airing),
-            2 => Some(AiringStatus::FinishedAiring),
-            3 => Some(AiringStatus::NotYetAired),
-            _ => None,
-        }
-    }
+gen_list_field_enum!(AiringStatus,
+    ["A series that is currently airing."]
+    Airing = [1, "currently airing"],
 
-    fn from_str<S: AsRef<str>>(input: S) -> Option<AiringStatus> {
-        let lowered = input.as_ref().to_ascii_lowercase();
+    ["A series that has finished airing."]
+    FinishedAiring = [2, "finished airing"],
 
-        match lowered.as_str() {
-            "currently airing" => Some(AiringStatus::Airing),
-            "finished airing" => Some(AiringStatus::FinishedAiring),
-            "not yet aired" => Some(AiringStatus::NotYetAired),
-            _ => None,
-        }
-    }
-}
+    ["A series that hasn't aired yet."]
+    NotYetAired = [3, "not yet aired"],
+);
 
 /// Contains information about an anime series on a user's list.
 #[derive(Debug, Clone)]
