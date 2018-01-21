@@ -131,7 +131,7 @@ impl MangaEntry {
     /// Creates a new `MangaEntry` instance with [`MangaInfo`] obtained from [`MAL`].
     ///
     /// [`MAL`]: ../../struct.MAL.html
-    /// [`MangaInfo`]: ../../struct.MangaInfo.html
+    /// [`MangaInfo`]: ./struct.MangaInfo.html
     ///
     /// # Examples
     ///

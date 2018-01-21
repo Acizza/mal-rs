@@ -125,7 +125,7 @@ impl AnimeEntry {
     /// Creates a new `AnimeEntry` instance with [`AnimeInfo`] obtained from [`MAL`].
     ///
     /// [`MAL`]: ../../struct.MAL.html
-    /// [`AnimeInfo`]: ../../struct.AnimeInfo.html
+    /// [`AnimeInfo`]: ./struct.AnimeInfo.html
     ///
     /// # Examples
     ///
