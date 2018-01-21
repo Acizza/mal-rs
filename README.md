@@ -7,6 +7,8 @@ At the time of writing, all features of the API are implemented, which include:
 * Getting misc. info and statistics from a user's anime and manga list
 * Verifying user credentials
 
+Please note that you cannot currently browse the documentation on docs.rs because it is using an outdated version of the compiler, which causes the build to fail. If you would like to browse the documentation offline, you can quickly build it yourself by running `cargo doc` in your project directory and then access it by opening `./target/doc/mal/index.html` in your web browser.
+
 # Usage
 By default, the library builds with support to work with both anime and manga.
 If you need to search for / perform operations on both the user's anime and manga list, you can simply add `mal` as a dependency to your `Cargo.toml` file:
