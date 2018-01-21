@@ -362,84 +362,6 @@ impl AnimeValues {
         Ok(values)
     }
 
-    /// Returns the number of episodes watched.
-    #[inline]
-    pub fn watched_episodes(&self) -> u32 {
-        self.watched_episodes.value
-    }
-
-    /// Sets the watched episode count.
-    #[inline]
-    pub fn set_watched_episodes(&mut self, watched: u32) -> &mut AnimeValues {
-        self.watched_episodes.set(watched);
-        self
-    }
-
-    /// Returns the date the anime started being watched.
-    #[inline]
-    pub fn start_date(&self) -> Option<NaiveDate> {
-        self.start_date.value
-    }
-
-    /// Sets the date the user started watching the anime.
-    #[inline]
-    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut AnimeValues {
-        self.start_date.set(date);
-        self
-    }
-
-    /// Returns the date the anime finished being watched.
-    #[inline]
-    pub fn finish_date(&self) -> Option<NaiveDate> {
-        self.finish_date.value
-    }
-
-    /// Sets the date the user finished watching the anime.
-    #[inline]
-    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut AnimeValues {
-        self.finish_date.set(date);
-        self
-    }
-
-    /// Returns the current watch status of the anime.
-    #[inline]
-    pub fn status(&self) -> WatchStatus {
-        self.status.value
-    }
-
-    /// Sets the current watch status for the anime.
-    #[inline]
-    pub fn set_status(&mut self, status: WatchStatus) -> &mut AnimeValues {
-        self.status.set(status);
-        self
-    }
-
-    /// Returns the user's score of the anime.
-    #[inline]
-    pub fn score(&self) -> u8 {
-        self.score.value
-    }
-
-    /// Sets the user's score for the anime.
-    #[inline]
-    pub fn set_score(&mut self, score: u8) -> &mut AnimeValues {
-        self.score.set(score);
-        self
-    }
-
-    /// Returns true if the anime is currently being rewatched.
-    #[inline]
-    pub fn rewatching(&self) -> bool {
-        self.rewatching.value
-    }
-
-    /// Sets whether or not the user is currently rewatching the anime.
-    #[inline]
-    pub fn set_rewatching(&mut self, rewatching: bool) -> &mut AnimeValues {
-        self.rewatching.set(rewatching);
-        self
-    }
-
     /// Returns the tags the user has set for the anime.
     #[inline]
     pub fn tags(&self) -> &Vec<String> {
@@ -455,6 +377,15 @@ impl AnimeValues {
         &mut self.tags.value
     }
 }
+
+impl_tracker_getset!(AnimeValues,
+    [watched_episodes, set_watched_episodes, "number of watched episodes"]: u32,
+    [start_date, set_start_date, "date the user started watching the series"]: Option<NaiveDate>,
+    [finish_date, set_finish_date, "date the user finished watching the series"]: Option<NaiveDate>,
+    [status, set_status, "current watch status of the series"]: WatchStatus,
+    [score, set_score, "user's rating of the series"]: u8,
+    [rewatching, set_rewatching, "current rewatch status of the series"]: bool,
+);
 
 impl EntryValues for AnimeValues {
     #[doc(hidden)]

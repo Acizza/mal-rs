@@ -368,97 +368,6 @@ impl MangaValues {
         Ok(values)
     }
 
-    /// Returns the number of chapters read.
-    #[inline]
-    pub fn chapter(&self) -> u32 {
-        self.chapter.value
-    }
-
-    /// Sets the number of chapters read.
-    #[inline]
-    pub fn set_read_chapters(&mut self, chapter: u32) -> &mut MangaValues {
-        self.chapter.set(chapter);
-        self
-    }
-
-    /// Returns the number of volumes read.
-    #[inline]
-    pub fn volume(&self) -> u32 {
-        self.volume.value
-    }
-
-    /// Sets the number of volumes read.
-    #[inline]
-    pub fn set_read_volumes(&mut self, volume: u32) -> &mut MangaValues {
-        self.volume.set(volume);
-        self
-    }
-
-    /// Returns the current reading status of the manga.
-    #[inline]
-    pub fn status(&self) -> ReadStatus {
-        self.status.value
-    }
-
-    /// Sets the current read status for the manga.
-    #[inline]
-    pub fn set_status(&mut self, status: ReadStatus) -> &mut MangaValues {
-        self.status.set(status);
-        self
-    }
-
-    /// Returns the user's score of the manga.
-    #[inline]
-    pub fn score(&self) -> u8 {
-        self.score.value
-    }
-
-    /// Sets the user's score for the manga.
-    #[inline]
-    pub fn set_score(&mut self, score: u8) -> &mut MangaValues {
-        self.score.set(score);
-        self
-    }
-
-    /// Returns the date the manga started being read.
-    #[inline]
-    pub fn start_date(&self) -> Option<NaiveDate> {
-        self.start_date.value
-    }
-
-    /// Sets the date the user started reading the manga.
-    #[inline]
-    pub fn set_start_date(&mut self, date: Option<NaiveDate>) -> &mut MangaValues {
-        self.start_date.set(date);
-        self
-    }
-
-    /// Returns the date the manga finished being read by the user.
-    #[inline]
-    pub fn finish_date(&self) -> Option<NaiveDate> {
-        self.finish_date.value
-    }
-
-    /// Sets the date the user finished reading the manga.
-    #[inline]
-    pub fn set_finish_date(&mut self, date: Option<NaiveDate>) -> &mut MangaValues {
-        self.finish_date.set(date);
-        self
-    }
-
-    /// Returns true if the manga is currently being reread.
-    #[inline]
-    pub fn rereading(&self) -> bool {
-        self.rereading.value
-    }
-
-    /// Sets whether or not the user is currently rereading the manga.
-    #[inline]
-    pub fn set_rereading(&mut self, rereading: bool) -> &mut MangaValues {
-        self.rereading.set(rereading);
-        self
-    }
-
     /// Returns the tags the user has set for the manga.
     #[inline]
     pub fn tags(&self) -> &Vec<String> {
@@ -474,6 +383,16 @@ impl MangaValues {
         &mut self.tags.value
     }
 }
+
+impl_tracker_getset!(MangaValues,
+    [chapter, set_read_chapters, "number of read chapters"]: u32,
+    [volume, set_read_volumes, "number of read volumes"]: u32,
+    [status, set_status, "current reading status of the series"]: ReadStatus,
+    [score, set_score, "user's rating of the series"]: u8,
+    [start_date, set_start_date, "date the user started reading the series"]: Option<NaiveDate>,
+    [finish_date, set_finish_date, "date the user finished reading the series"]: Option<NaiveDate>,
+    [rereading, set_rereading, "current re-reading status of the series"]: bool,
+);
 
 impl EntryValues for MangaValues {
     #[doc(hidden)]

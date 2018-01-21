@@ -112,8 +112,35 @@ macro_rules! generate_response_xml {
     }};
 }
 
+// Resets the changed status of struct fields with a ChangeTracker type.
 macro_rules! reset_changed_fields {
     ($struct:ident, $($name:ident),+) => ($($struct.$name.changed = false;)+);
+}
+
+// Generates getter and setter methods for struct fields with a ChangeTracker type.
+macro_rules! impl_tracker_getset {
+    ($name:ident, $([$field:ident, $setter:ident, $verb:expr]: $field_type:ty,)+) => {
+        impl $name {
+            $(
+            #[doc = "Returns the "]
+            #[doc = $verb]
+            #[doc = "."]
+            #[inline]
+            pub fn $field(&self) -> $field_type {
+                self.$field.value
+            }
+
+            #[doc = "Sets the "]
+            #[doc = $verb]
+            #[doc = "."]
+            #[inline]
+            pub fn $setter(&mut self, $field: $field_type) -> &mut $name {
+                self.$field.set($field);
+                self
+            }
+            )+
+        }
+    };
 }
 
 #[cfg(feature = "anime")]
