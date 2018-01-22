@@ -44,8 +44,8 @@ pub fn date_to_str(date: Option<NaiveDate>) -> String {
 pub fn split_into_vec(string: &str, delim: &str) -> Vec<String> {
     string
         .split(delim)
-        .map(|s| s.to_string())
         .skip_while(|s| s.is_empty())
+        .map(|s| s.to_string())
         .collect()
 }
 
