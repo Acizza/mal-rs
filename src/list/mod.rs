@@ -86,12 +86,14 @@
 //! mal.anime_list().update(&mut entry).unwrap();
 //! ```
 
+use chrono::NaiveDate;
 use failure::{Error, SyncFailure};
 use {MAL, MALError};
 use minidom::Element;
 use request::{ListType, Request};
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::str::FromStr;
 
 // Generates getter and setter methods for struct fields with a ChangeTracker type.
 macro_rules! impl_tracker_getset {
@@ -585,4 +587,55 @@ impl<T: Debug + Default + Clone> From<T> for ChangeTracker<T> {
     fn from(value: T) -> Self {
         ChangeTracker::new(value)
     }
+}
+
+#[derive(Fail, Debug)]
+enum ParseXMLError {
+    #[fail(display = "no XML node named \"{}\"", _0)]
+    MissingXMLNode(String),
+
+    #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
+    ConversionFailed(String),
+}
+
+fn parse_xml_child<T: FromStr>(elem: &Element, name: &str) -> Result<T, ParseXMLError> {
+    let text = elem.children()
+        .find(|c| c.name() == name)
+        .ok_or_else(|| ParseXMLError::MissingXMLNode(name.into()))?
+        .texts()
+        .next()
+        .unwrap_or("");
+
+    text.parse::<T>()
+        .map_err(|_| ParseXMLError::ConversionFailed(name.into()))
+}
+
+fn parse_str_date(date: &str) -> Option<NaiveDate> {
+    if date != "0000-00-00" {
+        NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
+    } else {
+        None
+    }
+}
+
+fn date_to_str(date: Option<NaiveDate>) -> String {
+    match date {
+        Some(date) => date.format("%m%d%Y").to_string(),
+        None => {
+            // MAL uses an all-zero date to represent a non-set one
+            "00000000".into()
+        }
+    }
+}
+
+fn split_by_delim(string: &str, delim: &str) -> Vec<String> {
+    string
+        .split(delim)
+        .skip_while(|s| s.is_empty())
+        .map(String::from)
+        .collect()
+}
+
+fn concat_by_delim(tags: &[String], delim: char) -> String {
+    tags.iter().map(|tag| format!("{}{}", tag, delim)).collect()
 }

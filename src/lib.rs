@@ -45,7 +45,6 @@ extern crate lazy_static;
 pub mod list;
 
 mod request;
-mod util;
 
 extern crate chrono;
 extern crate minidom;

@@ -3,12 +3,12 @@
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::Error;
+use list;
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
-use util::{self, parse_xml_child};
 
 #[derive(Fail, Debug)]
 pub enum AnimeError {
@@ -18,7 +18,7 @@ pub enum AnimeError {
     #[fail(display = "{} is not a known watch status", _0)]
     UnknownWatchStatus(i32),
 
-    #[fail(display = "\"{}\" does not map to a known series type", _0)]
+    #[fail(display = "\"{}\" does not map to a known series type", _0)] 
     UnknownSeriesType(String),
 }
 
@@ -49,21 +49,23 @@ impl SeriesInfo for AnimeInfo {
     #[doc(hidden)]
     fn parse_search_result(xml: &Element) -> Result<AnimeInfo, Error> {
         let entry = AnimeInfo {
-            id: parse_xml_child(xml, "id")?,
-            title: parse_xml_child(xml, "title")?,
-            synonyms: util::split_into_vec(&parse_xml_child::<String>(xml, "synonyms")?, "; "),
-            episodes: parse_xml_child(xml, "episodes")?,
+            id: list::parse_xml_child(xml, "id")?,
+            title: list::parse_xml_child(xml, "title")?,
+            synonyms: {
+                list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
+            },
+            episodes: list::parse_xml_child(xml, "episodes")?,
             airing_status: {
-                let status = parse_xml_child(xml, "status")?;
+                let status = list::parse_xml_child(xml, "status")?;
                 AiringStatus::from_str(&status).ok_or_else(|| AnimeError::UnknownAirStatus(status))?
             },
             series_type: {
-                let s_type = parse_xml_child(xml, "type")?;
+                let s_type = list::parse_xml_child(xml, "type")?;
                 AnimeType::from_str(&s_type).ok_or_else(|| AnimeError::UnknownSeriesType(s_type))?
             },
-            start_date: util::parse_str_date(&parse_xml_child::<String>(xml, "start_date")?),
-            end_date: util::parse_str_date(&parse_xml_child::<String>(xml, "end_date")?),
-            image_url: parse_xml_child(xml, "image")?,
+            start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
+            end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),
+            image_url: list::parse_xml_child(xml, "image")?,
         };
 
         Ok(entry)
@@ -168,32 +170,37 @@ impl ListEntry for AnimeEntry {
     #[doc(hidden)]
     fn parse(xml: &Element) -> Result<AnimeEntry, Error> {
         let info = AnimeInfo {
-            id: parse_xml_child(xml, "series_animedb_id")?,
-            title: parse_xml_child(xml, "series_title")?,
+            id: list::parse_xml_child(xml, "series_animedb_id")?,
+            title: list::parse_xml_child(xml, "series_title")?,
             synonyms: {
-                util::split_into_vec(&parse_xml_child::<String>(xml, "series_synonyms")?, "; ")
+                list::split_by_delim(
+                    &list::parse_xml_child::<String>(xml, "series_synonyms")?,
+                    "; ",
+                )
             },
-            episodes: parse_xml_child(xml, "series_episodes")?,
+            episodes: list::parse_xml_child(xml, "series_episodes")?,
             airing_status: {
-                let status = parse_xml_child(xml, "series_status")?;
+                let status = list::parse_xml_child(xml, "series_status")?;
 
                 AiringStatus::from_i32(status)
                     .ok_or_else(|| AnimeError::UnknownAirStatus(status.to_string()))?
             },
             series_type: {
-                let s_type = parse_xml_child(xml, "series_type")?;
+                let s_type = list::parse_xml_child(xml, "series_type")?;
 
                 AnimeType::from_i32(s_type)
                     .ok_or_else(|| AnimeError::UnknownSeriesType(s_type.to_string()))?
             },
-            start_date: util::parse_str_date(&parse_xml_child::<String>(xml, "series_start")?),
-            end_date: util::parse_str_date(&parse_xml_child::<String>(xml, "series_end")?),
-            image_url: parse_xml_child(xml, "series_image")?,
+            start_date: {
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_start")?)
+            },
+            end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_end")?),
+            image_url: list::parse_xml_child(xml, "series_image")?,
         };
 
         let entry = AnimeEntry {
             series_info: info,
-            last_updated_time: Utc.timestamp(parse_xml_child(xml, "my_last_updated")?, 0),
+            last_updated_time: Utc.timestamp(list::parse_xml_child(xml, "my_last_updated")?, 0),
             values: AnimeValues::parse(xml)?,
         };
 
@@ -269,29 +276,32 @@ impl AnimeValues {
 
     fn parse(xml: &Element) -> Result<AnimeValues, Error> {
         let values = AnimeValues {
-            watched_episodes: parse_xml_child::<u32>(xml, "my_watched_episodes")?.into(),
+            watched_episodes: list::parse_xml_child::<u32>(xml, "my_watched_episodes")?.into(),
             start_date: {
-                util::parse_str_date(&parse_xml_child::<String>(xml, "my_start_date")?).into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_start_date")?).into()
             },
             finish_date: {
-                util::parse_str_date(&parse_xml_child::<String>(xml, "my_finish_date")?).into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?)
+                    .into()
             },
             status: {
-                let status_num = parse_xml_child(xml, "my_status")?;
+                let status_num = list::parse_xml_child(xml, "my_status")?;
 
                 WatchStatus::from_i32(status_num)
                     .ok_or_else(|| AnimeError::UnknownWatchStatus(status_num))?
                     .into()
             },
-            score: parse_xml_child::<u8>(xml, "my_score")?.into(),
+            score: list::parse_xml_child::<u8>(xml, "my_score")?.into(),
             rewatching: {
                 // The rewatching tag is sometimes blank for no apparent reason..
-                parse_xml_child::<u8>(xml, "my_rewatching")
+                list::parse_xml_child::<u8>(xml, "my_rewatching")
                     .map(|v| v == 1)
                     .unwrap_or(false)
                     .into()
             },
-            tags: util::split_into_vec(&parse_xml_child::<String>(xml, "my_tags")?, ",").into(),
+            tags: {
+                list::split_by_delim(&list::parse_xml_child::<String>(xml, "my_tags")?, ",").into()
+            },
         };
 
         Ok(values)
@@ -325,11 +335,11 @@ impl_tracker_getset!(AnimeValues,
 impl_entryvalues!(AnimeValues,
     watched_episodes(num): "episode" => num.to_string(),
     status(status): "status" => (*status as i32).to_string(),
-    start_date(date): "date_start" => util::date_to_str(*date),
-    finish_date(date): "date_finish" => util::date_to_str(*date),
+    start_date(date): "date_start" => list::date_to_str(*date),
+    finish_date(date): "date_finish" => list::date_to_str(*date),
     score(score): "score" => score.to_string(),
     rewatching(v): "enable_rewatching" => (*v as u8).to_string(),
-    tags(t): "tags" => util::concat_by_delimeter(t, ','),
+    tags(t): "tags" => list::concat_by_delim(t, ','),
 );
 
 /// Contains list statistics and user information.
@@ -355,13 +365,13 @@ impl UserInfo for AnimeUserInfo {
     #[doc(hidden)]
     fn parse(xml: &Element) -> Result<AnimeUserInfo, Error> {
         let info = AnimeUserInfo {
-            user_id: parse_xml_child(xml, "user_id")?,
-            watching: parse_xml_child(xml, "user_watching")?,
-            completed: parse_xml_child(xml, "user_completed")?,
-            on_hold: parse_xml_child(xml, "user_onhold")?,
-            dropped: parse_xml_child(xml, "user_dropped")?,
-            plan_to_watch: parse_xml_child(xml, "user_plantowatch")?,
-            days_spent_watching: parse_xml_child(xml, "user_days_spent_watching")?,
+            user_id: list::parse_xml_child(xml, "user_id")?,
+            watching: list::parse_xml_child(xml, "user_watching")?,
+            completed: list::parse_xml_child(xml, "user_completed")?,
+            on_hold: list::parse_xml_child(xml, "user_onhold")?,
+            dropped: list::parse_xml_child(xml, "user_dropped")?,
+            plan_to_watch: list::parse_xml_child(xml, "user_plantowatch")?,
+            days_spent_watching: list::parse_xml_child(xml, "user_days_spent_watching")?,
         };
 
         Ok(info)

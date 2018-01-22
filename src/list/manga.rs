@@ -3,12 +3,12 @@
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::Error;
+use list;
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
 use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
-use util::{self, parse_xml_child};
 
 #[derive(Fail, Debug)]
 pub enum MangaError {
@@ -51,25 +51,27 @@ impl SeriesInfo for MangaInfo {
     #[doc(hidden)]
     fn parse_search_result(xml: &Element) -> Result<MangaInfo, Error> {
         let entry = MangaInfo {
-            id: parse_xml_child(xml, "id")?,
-            title: parse_xml_child(xml, "title")?,
-            synonyms: util::split_into_vec(&parse_xml_child::<String>(xml, "synonyms")?, "; "),
+            id: list::parse_xml_child(xml, "id")?,
+            title: list::parse_xml_child(xml, "title")?,
+            synonyms: {
+                list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
+            },
             series_type: {
-                let s_type = parse_xml_child(xml, "type")?;
+                let s_type = list::parse_xml_child(xml, "type")?;
 
                 MangaType::from_str(&s_type).ok_or_else(|| MangaError::UnknownSeriesType(s_type))?
             },
-            chapters: parse_xml_child(xml, "chapters")?,
-            volumes: parse_xml_child(xml, "volumes")?,
+            chapters: list::parse_xml_child(xml, "chapters")?,
+            volumes: list::parse_xml_child(xml, "volumes")?,
             publishing_status: {
-                let status = parse_xml_child(xml, "status")?;
+                let status = list::parse_xml_child(xml, "status")?;
 
                 PublishingStatus::from_str(&status)
                     .ok_or_else(|| MangaError::UnknownPublishStatus(status))?
             },
-            start_date: util::parse_str_date(&parse_xml_child::<String>(xml, "start_date")?),
-            end_date: util::parse_str_date(&parse_xml_child::<String>(xml, "end_date")?),
-            image_url: parse_xml_child(xml, "image")?,
+            start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
+            end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),
+            image_url: list::parse_xml_child(xml, "image")?,
         };
 
         Ok(entry)
@@ -168,33 +170,38 @@ impl ListEntry for MangaEntry {
     #[doc(hidden)]
     fn parse(xml: &Element) -> Result<MangaEntry, Error> {
         let info = MangaInfo {
-            id: parse_xml_child(xml, "series_mangadb_id")?,
-            title: parse_xml_child(xml, "series_title")?,
+            id: list::parse_xml_child(xml, "series_mangadb_id")?,
+            title: list::parse_xml_child(xml, "series_title")?,
             synonyms: {
-                util::split_into_vec(&parse_xml_child::<String>(xml, "series_synonyms")?, "; ")
+                list::split_by_delim(
+                    &list::parse_xml_child::<String>(xml, "series_synonyms")?,
+                    "; ",
+                )
             },
             series_type: {
-                let s_type = parse_xml_child(xml, "series_type")?;
+                let s_type = list::parse_xml_child(xml, "series_type")?;
 
                 MangaType::from_i32(s_type)
                     .ok_or_else(|| MangaError::UnknownSeriesType(s_type.to_string()))?
             },
-            chapters: parse_xml_child(xml, "series_chapters")?,
-            volumes: parse_xml_child(xml, "series_volumes")?,
+            chapters: list::parse_xml_child(xml, "series_chapters")?,
+            volumes: list::parse_xml_child(xml, "series_volumes")?,
             publishing_status: {
-                let status = parse_xml_child(xml, "series_status")?;
+                let status = list::parse_xml_child(xml, "series_status")?;
 
                 PublishingStatus::from_i32(status)
                     .ok_or_else(|| MangaError::UnknownPublishStatus(status.to_string()))?
             },
-            start_date: util::parse_str_date(&parse_xml_child::<String>(xml, "series_start")?),
-            end_date: util::parse_str_date(&parse_xml_child::<String>(xml, "series_end")?),
-            image_url: parse_xml_child(xml, "series_image")?,
+            start_date: {
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_start")?)
+            },
+            end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_end")?),
+            image_url: list::parse_xml_child(xml, "series_image")?,
         };
 
         let entry = MangaEntry {
             series_info: info,
-            last_updated_time: Utc.timestamp(parse_xml_child(xml, "my_last_updated")?, 0),
+            last_updated_time: Utc.timestamp(list::parse_xml_child(xml, "my_last_updated")?, 0),
             values: MangaValues::parse(xml)?,
         };
 
@@ -266,30 +273,33 @@ impl MangaValues {
 
     fn parse(xml: &Element) -> Result<MangaValues, Error> {
         let values = MangaValues {
-            chapter: parse_xml_child::<u32>(xml, "my_read_chapters")?.into(),
-            volume: parse_xml_child::<u32>(xml, "my_read_volumes")?.into(),
+            chapter: list::parse_xml_child::<u32>(xml, "my_read_chapters")?.into(),
+            volume: list::parse_xml_child::<u32>(xml, "my_read_volumes")?.into(),
             status: {
-                let status_num = parse_xml_child(xml, "my_status")?;
+                let status_num = list::parse_xml_child(xml, "my_status")?;
 
                 ReadStatus::from_i32(status_num)
                     .ok_or_else(|| MangaError::UnknownReadStatus(status_num))?
                     .into()
             },
-            score: parse_xml_child::<u8>(xml, "my_score")?.into(),
+            score: list::parse_xml_child::<u8>(xml, "my_score")?.into(),
             start_date: {
-                util::parse_str_date(&parse_xml_child::<String>(xml, "my_start_date")?).into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_start_date")?).into()
             },
             finish_date: {
-                util::parse_str_date(&parse_xml_child::<String>(xml, "my_finish_date")?).into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?)
+                    .into()
             },
             rereading: {
                 // The rereading tag is sometimes blank for no apparent reason..
-                parse_xml_child::<u8>(xml, "my_rereadingg")
+                list::parse_xml_child::<u8>(xml, "my_rereadingg")
                     .map(|v| v == 1)
                     .unwrap_or(false)
                     .into()
             },
-            tags: util::split_into_vec(&parse_xml_child::<String>(xml, "my_tags")?, ",").into(),
+            tags: {
+                list::split_by_delim(&list::parse_xml_child::<String>(xml, "my_tags")?, ",").into()
+            },
         };
 
         Ok(values)
@@ -326,10 +336,10 @@ impl_entryvalues!(MangaValues,
     volume(vol): "volume" => vol.to_string(),
     status(status): "status" => (*status as i32).to_string(),
     score(score): "score" => score.to_string(),
-    start_date(date): "date_start" => util::date_to_str(*date),
-    finish_date(date): "date_finish" => util::date_to_str(*date),
+    start_date(date): "date_start" => list::date_to_str(*date),
+    finish_date(date): "date_finish" => list::date_to_str(*date),
     rereading(v): "enable_rereading" => (*v as u8).to_string(),
-    tags(t): "tags" => util::concat_by_delimeter(t, ','),
+    tags(t): "tags" => list::concat_by_delim(t, ','),
 );
 
 /// Contains list statistics and user information.
@@ -355,13 +365,13 @@ impl UserInfo for MangaUserInfo {
     #[doc(hidden)]
     fn parse(xml: &Element) -> Result<MangaUserInfo, Error> {
         let info = MangaUserInfo {
-            user_id: parse_xml_child(xml, "user_id")?,
-            reading: parse_xml_child(xml, "user_reading")?,
-            completed: parse_xml_child(xml, "user_completed")?,
-            on_hold: parse_xml_child(xml, "user_onhold")?,
-            dropped: parse_xml_child(xml, "user_dropped")?,
-            plan_to_read: parse_xml_child(xml, "user_plantoread")?,
-            days_spent_watching: parse_xml_child(xml, "user_days_spent_watching")?,
+            user_id: list::parse_xml_child(xml, "user_id")?,
+            reading: list::parse_xml_child(xml, "user_reading")?,
+            completed: list::parse_xml_child(xml, "user_completed")?,
+            on_hold: list::parse_xml_child(xml, "user_onhold")?,
+            dropped: list::parse_xml_child(xml, "user_dropped")?,
+            plan_to_read: list::parse_xml_child(xml, "user_plantoread")?,
+            days_spent_watching: list::parse_xml_child(xml, "user_days_spent_watching")?,
         };
 
         Ok(info)
