@@ -14,7 +14,8 @@
 //! 
 //! ```no_run
 //! use mal::MAL;
-//! use mal::list::anime::{AnimeEntry, WatchStatus};
+//! use mal::list::Status;
+//! use mal::list::anime::AnimeEntry;
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -31,7 +32,7 @@
 //! // Set the entry's watched episodes to 5 and status to watching
 //! entry.values
 //!      .set_watched_episodes(5)
-//!      .set_status(WatchStatus::Watching);
+//!      .set_status(Status::WatchingOrReading);
 //! 
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&mut entry).unwrap();

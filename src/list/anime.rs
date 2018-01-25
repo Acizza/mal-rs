@@ -3,20 +3,16 @@
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::Error;
-use list;
+use list::{self, ListError, Status};
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
-use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 
 #[derive(Fail, Debug)]
 pub enum AnimeError {
     #[fail(display = "\"{}\" does not map to a known airing status", _0)]
     UnknownAirStatus(String),
-
-    #[fail(display = "{} is not a known watch status", _0)]
-    UnknownWatchStatus(i32),
 
     #[fail(display = "\"{}\" does not map to a known series type", _0)] 
     UnknownSeriesType(String),
@@ -244,16 +240,17 @@ impl PartialEq for AnimeEntry {
 /// # Examples
 ///
 /// ```
-/// use mal::list::anime::{AnimeValues, WatchStatus};
+/// use mal::list::Status;
+/// use mal::list::anime::AnimeValues;
 ///
 /// let mut values = AnimeValues::new();
 ///
 /// values.set_watched_episodes(5)
-///       .set_status(WatchStatus::Watching)
+///       .set_status(Status::WatchingOrReading)
 ///       .set_score(7);
 ///
 /// assert_eq!(values.watched_episodes(), 5);
-/// assert_eq!(values.status(), WatchStatus::Watching);
+/// assert_eq!(values.status(), Status::WatchingOrReading);
 /// assert_eq!(values.score(), 7);
 /// ```
 #[derive(Debug, Default, Clone)]
@@ -261,7 +258,7 @@ pub struct AnimeValues {
     watched_episodes: ChangeTracker<u32>,
     start_date: ChangeTracker<Option<NaiveDate>>,
     finish_date: ChangeTracker<Option<NaiveDate>>,
-    status: ChangeTracker<WatchStatus>,
+    status: ChangeTracker<Status>,
     score: ChangeTracker<u8>,
     rewatching: ChangeTracker<bool>,
     tags: ChangeTracker<Vec<String>>,
@@ -287,8 +284,8 @@ impl AnimeValues {
             status: {
                 let status_num = list::parse_xml_child(xml, "my_status")?;
 
-                WatchStatus::from_i32(status_num)
-                    .ok_or_else(|| AnimeError::UnknownWatchStatus(status_num))?
+                Status::from_i32(status_num)
+                    .ok_or_else(|| ListError::UnknownStatus(status_num))?
                     .into()
             },
             score: list::parse_xml_child::<u8>(xml, "my_score")?.into(),
@@ -327,7 +324,7 @@ impl_tracker_getset!(AnimeValues,
     [watched_episodes, set_watched_episodes, "number of watched episodes"]: u32,
     [start_date, set_start_date, "date the user started watching the series"]: Option<NaiveDate>,
     [finish_date, set_finish_date, "date the user finished watching the series"]: Option<NaiveDate>,
-    [status, set_status, "current watch status of the series"]: WatchStatus,
+    [status, set_status, "current watch status of the series"]: Status,
     [score, set_score, "user's rating of the series"]: u8,
     [rewatching, set_rewatching, "current rewatch status of the series"]: bool,
 );
@@ -375,62 +372,5 @@ impl UserInfo for AnimeUserInfo {
         };
 
         Ok(info)
-    }
-}
-
-/// Represents the watch status of an anime on a user's list.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum WatchStatus {
-    Watching = 1,
-    Completed,
-    OnHold,
-    Dropped,
-    PlanToWatch = 6,
-}
-
-impl WatchStatus {
-    /// Attempts to convert an i32 to a `WatchStatus`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::anime::WatchStatus;
-    ///
-    /// let status_watching = WatchStatus::from_i32(1).unwrap();
-    /// let status_plantowatch = WatchStatus::from_i32(6).unwrap();
-    ///
-    /// assert_eq!(status_watching, WatchStatus::Watching);
-    /// assert_eq!(status_plantowatch, WatchStatus::PlanToWatch);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<WatchStatus> {
-        match value {
-            1 => Some(WatchStatus::Watching),
-            2 => Some(WatchStatus::Completed),
-            3 => Some(WatchStatus::OnHold),
-            4 => Some(WatchStatus::Dropped),
-            6 => Some(WatchStatus::PlanToWatch),
-            _ => None,
-        }
-    }
-}
-
-impl Default for WatchStatus {
-    #[inline]
-    fn default() -> Self {
-        WatchStatus::PlanToWatch
-    }
-}
-
-impl Display for WatchStatus {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            WatchStatus::Watching => write!(f, "watching"),
-            WatchStatus::Completed => write!(f, "completed"),
-            WatchStatus::OnHold => write!(f, "on hold"),
-            WatchStatus::Dropped => write!(f, "dropped"),
-            WatchStatus::PlanToWatch => write!(f, "plan to watch"),
-        }
     }
 }

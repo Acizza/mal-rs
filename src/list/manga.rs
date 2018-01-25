@@ -3,20 +3,16 @@
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use failure::Error;
-use list;
+use list::{self, ListError, Status};
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
-use std::fmt::{self, Display};
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 
 #[derive(Fail, Debug)]
 pub enum MangaError {
     #[fail(display = "\"{}\" does not map to a known publishing status", _0)]
     UnknownPublishStatus(String),
-
-    #[fail(display = "{} is not a known read status", _0)]
-    UnknownReadStatus(i32),
 
     #[fail(display = "\"{}\" does not map to a known series type", _0)]
     UnknownSeriesType(String),
@@ -238,25 +234,26 @@ impl ListEntry for MangaEntry {
 /// # Examples
 ///
 /// ```
-/// use mal::list::manga::{MangaValues, ReadStatus};
+/// use mal::list::Status;
+/// use mal::list::manga::MangaValues;
 ///
 /// let mut values = MangaValues::new();
 ///
 /// values.set_read_chapters(50)
 ///       .set_read_volumes(2)
-///       .set_status(ReadStatus::Reading)
+///       .set_status(Status::WatchingOrReading)
 ///       .set_score(7);
 ///
 /// assert_eq!(values.chapter(), 50);
 /// assert_eq!(values.volume(), 2);
-/// assert_eq!(values.status(), ReadStatus::Reading);
+/// assert_eq!(values.status(), Status::WatchingOrReading);
 /// assert_eq!(values.score(), 7);
 /// ```
 #[derive(Debug, Default, Clone)]
 pub struct MangaValues {
     chapter: ChangeTracker<u32>,
     volume: ChangeTracker<u32>,
-    status: ChangeTracker<ReadStatus>,
+    status: ChangeTracker<Status>,
     score: ChangeTracker<u8>,
     start_date: ChangeTracker<Option<NaiveDate>>,
     finish_date: ChangeTracker<Option<NaiveDate>>,
@@ -278,8 +275,8 @@ impl MangaValues {
             status: {
                 let status_num = list::parse_xml_child(xml, "my_status")?;
 
-                ReadStatus::from_i32(status_num)
-                    .ok_or_else(|| MangaError::UnknownReadStatus(status_num))?
+                Status::from_i32(status_num)
+                    .ok_or_else(|| ListError::UnknownStatus(status_num))?
                     .into()
             },
             score: list::parse_xml_child::<u8>(xml, "my_score")?.into(),
@@ -324,7 +321,7 @@ impl MangaValues {
 impl_tracker_getset!(MangaValues,
     [chapter, set_read_chapters, "number of read chapters"]: u32,
     [volume, set_read_volumes, "number of read volumes"]: u32,
-    [status, set_status, "current reading status of the series"]: ReadStatus,
+    [status, set_status, "current reading status of the series"]: Status,
     [score, set_score, "user's rating of the series"]: u8,
     [start_date, set_start_date, "date the user started reading the series"]: Option<NaiveDate>,
     [finish_date, set_finish_date, "date the user finished reading the series"]: Option<NaiveDate>,
@@ -375,62 +372,5 @@ impl UserInfo for MangaUserInfo {
         };
 
         Ok(info)
-    }
-}
-
-/// Represents the read status of a manga on the user's list.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ReadStatus {
-    Reading = 1,
-    Completed,
-    OnHold,
-    Dropped,
-    PlanToRead = 6,
-}
-
-impl ReadStatus {
-    /// Attempts to convert an i32 to a `ReadStatus`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use mal::list::manga::ReadStatus;
-    ///
-    /// let status_reading = ReadStatus::from_i32(1).unwrap();
-    /// let status_plantoread = ReadStatus::from_i32(6).unwrap();
-    ///
-    /// assert_eq!(status_reading, ReadStatus::Reading);
-    /// assert_eq!(status_plantoread, ReadStatus::PlanToRead);
-    /// ```
-    #[inline]
-    pub fn from_i32(value: i32) -> Option<ReadStatus> {
-        match value {
-            1 => Some(ReadStatus::Reading),
-            2 => Some(ReadStatus::Completed),
-            3 => Some(ReadStatus::OnHold),
-            4 => Some(ReadStatus::Dropped),
-            6 => Some(ReadStatus::PlanToRead),
-            _ => None,
-        }
-    }
-}
-
-impl Default for ReadStatus {
-    #[inline]
-    fn default() -> ReadStatus {
-        ReadStatus::PlanToRead
-    }
-}
-
-impl Display for ReadStatus {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ReadStatus::Reading => write!(f, "reading"),
-            ReadStatus::Completed => write!(f, "completed"),
-            ReadStatus::OnHold => write!(f, "on hold"),
-            ReadStatus::Dropped => write!(f, "dropped"),
-            ReadStatus::PlanToRead => write!(f, "plan to read"),
-        }
     }
 }

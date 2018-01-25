@@ -14,7 +14,8 @@
 //! 
 //! ```no_run
 //! use mal::MAL;
-//! use mal::list::anime::{AnimeEntry, WatchStatus};
+//! use mal::list::Status;
+//! use mal::list::anime::AnimeEntry;
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -31,7 +32,7 @@
 //! // Set the entry's watched episodes to 5 and status to watching
 //! entry.values
 //!      .set_watched_episodes(5)
-//!      .set_status(WatchStatus::Watching);
+//!      .set_status(Status::WatchingOrReading);
 //! 
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&mut entry).unwrap();
@@ -41,7 +42,8 @@
 //! 
 //! ```no_run
 //! use mal::MAL;
-//! use mal::list::manga::{MangaValues, ReadStatus};
+//! use mal::list::Status;
+//! use mal::list::manga::MangaValues;
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -53,7 +55,7 @@
 //! values.set_read_chapters(25)
 //!       .set_read_volumes(2)
 //!       .set_score(10)
-//!       .set_status(ReadStatus::Completed);
+//!       .set_status(Status::Completed);
 //! 
 //! // Update the entry with an id of 2 (Berserk) on the user's manga list with the specified values
 //! mal.manga_list().update_id(2, &mut values).unwrap();
@@ -63,7 +65,7 @@
 //! 
 //! ```no_run
 //! use mal::MAL;
-//! use mal::list::anime::WatchStatus;
+//! use mal::list::Status;
 //! 
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
@@ -73,14 +75,14 @@
 //! 
 //! // Find the first series on the user's list that's being watched
 //! let mut entry = list.entries.into_iter().find(|e| {
-//!     e.values.status() == WatchStatus::Watching
+//!     e.values.status() == Status::WatchingOrReading
 //! }).unwrap();
 //! 
 //! // Set the entrie's watched episodes to its total episodes, its score to 10, and status to completed
 //! entry.values
 //!      .set_watched_episodes(entry.series_info.episodes)
 //!      .set_score(10)
-//!      .set_status(WatchStatus::Completed);
+//!      .set_status(Status::Completed);
 //! 
 //! // Update the entry on the user's anime list with the new values
 //! mal.anime_list().update(&mut entry).unwrap();
@@ -91,7 +93,7 @@ use failure::{Error, SyncFailure};
 use {MAL, MALError};
 use minidom::Element;
 use request::{ListType, Request};
-use std::fmt::Debug;
+use std::fmt::{self, Display, Debug};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -186,6 +188,9 @@ pub mod manga;
 pub enum ListError {
     #[fail(display = "no user info found")]
     NoUserInfoFound,
+
+    #[fail(display = "\"{}\" does not map to a known series status", _0)]
+    UnknownStatus(i32),
 }
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list.
@@ -196,8 +201,8 @@ pub enum ListError {
 /// 
 /// ```no_run
 /// use mal::MAL;
-/// use mal::list::List;
-/// use mal::list::anime::{AnimeEntry, AnimeValues, WatchStatus};
+/// use mal::list::{List, Status};
+/// use mal::list::anime::{AnimeEntry, AnimeValues};
 /// 
 /// // Create a new MAL instance
 /// let mal = MAL::new("username", "password");
@@ -211,7 +216,7 @@ pub enum ListError {
 /// 
 /// // Set the watched episode count to 25, and status to completed
 /// values.set_watched_episodes(25)
-///       .set_status(WatchStatus::Completed);
+///       .set_status(Status::Completed);
 /// 
 /// // Add the anime with ID 4224 (Toradora) to a user's anime list with the values set above
 /// anime_list.add_id(4224, &mut values).unwrap();
@@ -293,7 +298,8 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::{AnimeEntry, WatchStatus};
+    /// use mal::list::Status;
+    /// use mal::list::anime::AnimeEntry;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -310,7 +316,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Set the entry's watched episodes to 5 and status to watching
     /// entry.values
     ///      .set_watched_episodes(5)
-    ///      .set_status(WatchStatus::Watching);
+    ///      .set_status(Status::WatchingOrReading);
     /// 
     /// // Add the entry to the user's anime list
     /// mal.anime_list().add(&mut entry).unwrap();
@@ -330,7 +336,8 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::{AnimeValues, WatchStatus};
+    /// use mal::list::Status;
+    /// use mal::list::anime::AnimeValues;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -340,7 +347,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// // Set the number of watched episodes to 5 and the status to watching
     /// values.set_watched_episodes(5)
-    ///       .set_status(WatchStatus::Watching);
+    ///       .set_status(Status::WatchingOrReading);
     /// 
     /// // Add an entry with an id of 4224 (Toradora) to the user's anime list
     /// mal.anime_list().add_id(4224, &mut values).unwrap();
@@ -364,7 +371,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::WatchStatus;
+    /// use mal::list::Status;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -386,7 +393,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// toradora.values
     ///         .set_watched_episodes(25)
     ///         .set_score(10)
-    ///         .set_status(WatchStatus::Completed);
+    ///         .set_status(Status::Completed);
     /// 
     /// // Update the anime on the user's list
     /// anime_list.update(&mut toradora).unwrap();
@@ -406,7 +413,8 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::{AnimeValues, WatchStatus};
+    /// use mal::list::Status;
+    /// use mal::list::anime::AnimeValues;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -417,7 +425,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// // Set the number of watched episodes to 25, score to 10, and status to completed
     /// values.set_watched_episodes(25)
     ///       .set_score(10)
-    ///       .set_status(WatchStatus::Completed);
+    ///       .set_status(Status::Completed);
     /// 
     /// // Update the entry with an id of 4224 (Toradora) on the user's anime list
     /// mal.anime_list().update_id(4224, &mut values).unwrap();
@@ -441,7 +449,6 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::WatchStatus;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -480,7 +487,6 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// 
     /// ```no_run
     /// use mal::MAL;
-    /// use mal::list::anime::WatchStatus;
     /// 
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
@@ -561,6 +567,63 @@ pub trait EntryValues {
 pub trait UserInfo where Self: Sized {
     #[doc(hidden)]
     fn parse(xml_elem: &Element) -> Result<Self, Error>;
+}
+
+/// Represents the watching / reading status of a series.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Status {
+    WatchingOrReading = 1,
+    Completed,
+    OnHold,
+    Dropped,
+    PlanToWatchOrRead = 6,
+}
+
+impl Status {
+    /// Attempts to convert an i32 to a `Status`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mal::list::Status;
+    ///
+    /// let watching_reading = Status::from_i32(1).unwrap();
+    /// let plan_to_watch_read = Status::from_i32(6).unwrap();
+    ///
+    /// assert_eq!(watching_reading, Status::WatchingOrReading);
+    /// assert_eq!(plan_to_watch_read, Status::PlanToWatchOrRead);
+    /// ```
+    #[inline]
+    pub fn from_i32(value: i32) -> Option<Status> {
+        match value {
+            1 => Some(Status::WatchingOrReading),
+            2 => Some(Status::Completed),
+            3 => Some(Status::OnHold),
+            4 => Some(Status::Dropped),
+            6 => Some(Status::PlanToWatchOrRead),
+            _ => None,
+        }
+    }
+}
+
+impl Default for Status {
+    #[inline]
+    fn default() -> Self {
+        Status::PlanToWatchOrRead
+    }
+}
+
+impl Display for Status {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Status::WatchingOrReading => write!(f, "watching / reading"),
+            Status::Completed => write!(f, "completed"),
+            Status::OnHold => write!(f, "on hold"),
+            Status::Dropped => write!(f, "dropped"),
+            Status::PlanToWatchOrRead => write!(f, "plan to watch / read"),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
