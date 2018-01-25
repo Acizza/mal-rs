@@ -44,7 +44,7 @@ The following will update an existing anime on a user's list:
 extern crate mal;
 
 use mal::MAL;
-use mal::list::anime::WatchStatus;
+use mal::list::Status;
 
 fn main() {
     // Create a new MAL instance
@@ -65,7 +65,7 @@ fn main() {
     toradora.values
             .set_watched_episodes(25)
             .set_score(10)
-            .set_status(WatchStatus::Completed);
+            .set_status(Status::Completed);
 
     // Update the anime on the user's list
     mal.anime_list().update(&mut toradora).unwrap();
