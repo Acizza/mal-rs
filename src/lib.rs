@@ -112,7 +112,7 @@ impl<'a> MAL<'a> {
         MAL {
             username: username.into(),
             password: password.into(),
-            client: client.into(),
+            client,
         }
     }
 
