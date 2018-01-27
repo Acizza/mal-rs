@@ -127,8 +127,9 @@ impl<'a> MAL<'a> {
     /// ```
     #[cfg(feature = "anime")]
     #[inline]
-    pub fn search_anime(&self, name: &str) -> Result<Vec<AnimeInfo>, MALError> {
-        self.search::<AnimeInfo>(name)
+    pub fn search_anime<S>(&self, name: S) -> Result<Vec<AnimeInfo>, MALError>
+        where S: AsRef<str> {
+        self.search::<AnimeInfo, S>(name)
     }
 
     /// Searches MyAnimeList for a manga and returns all found results.
@@ -143,17 +144,43 @@ impl<'a> MAL<'a> {
     /// ```
     #[cfg(feature = "manga")]
     #[inline]
-    pub fn search_manga(&self, name: &str) -> Result<Vec<MangaInfo>, MALError> {
-        self.search::<MangaInfo>(name)
+    pub fn search_manga<S>(&self, name: S) -> Result<Vec<MangaInfo>, MALError>
+        where S: AsRef<str> {
+        self.search::<MangaInfo, S>(name)
     }
 
-    fn search<SI: SeriesInfo>(&self, name: &str) -> Result<Vec<SI>, MALError> {
-        let resp = match Request::Search(name, SI::list_type()).send(self) {
-            Ok(resp) => resp,
-            Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
-                return Ok(Vec::new());
-            },
-            Err(err) => return Err(MALError::Request(err)),
+    /// Searches MyAnimeList for the type of series specified by the `I` type parameter
+    /// and returns all found results.
+    /// 
+    /// If you aren't writing generic code over the [`SeriesInfo`] trait, you should
+    /// ideally use the [`search_anime`] and [`search_manga`] methods instead to
+    /// avoid ever accidentally searching for the wrong type of series.
+    /// 
+    /// [`SeriesInfo`]: ./list/trait.SeriesInfo.html
+    /// [`search_anime`]: #method.search_anime
+    /// [`search_manga`]: #method.search_manga
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::MAL;
+    /// use mal::list::anime::AnimeInfo;
+    /// 
+    /// let mal = MAL::new("username", "password");
+    /// let found: Vec<AnimeInfo> = mal.search("Cowboy Bebop").unwrap();
+    /// ```
+    pub fn search<I, S>(&self, name: S) -> Result<Vec<I>, MALError>
+        where I: SeriesInfo, S: AsRef<str> {
+        let resp = {
+            let result = Request::Search(name.as_ref(), I::list_type()).send(self);
+
+            match result {
+                Ok(resp) => resp,
+                Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
+                    return Ok(Vec::new());
+                },
+                Err(err) => return Err(MALError::Request(err)),
+            }
         };
 
         let root: Element = resp
@@ -163,7 +190,7 @@ impl<'a> MAL<'a> {
         let mut entries = Vec::new();
 
         for child in root.children() {
-            let entry = SI::parse_search_result(child)
+            let entry = I::parse_search_result(child)
                 .map_err(MALError::Internal)?;
 
             entries.push(entry);
