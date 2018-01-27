@@ -91,7 +91,7 @@ impl<'a> MAL<'a> {
     /// 
     /// This function will create a new reqwest [`Client`] to send requests to MyAnimeList.
     /// If you already have a [`Client`] that you only need to make synchronous requests with
-    /// and will that live as long as [`MAL`], then you should call [`with_client`] instead
+    /// and that will live as long as [`MAL`], then you should call [`with_client`] instead
     /// with `Cow::Borrowed`.
     /// 
     /// [`Client`]: ./../reqwest/struct.Client.html
