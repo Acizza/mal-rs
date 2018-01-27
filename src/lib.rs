@@ -52,15 +52,16 @@ extern crate minidom;
 extern crate reqwest;
 
 #[cfg(feature = "anime")]
-use list::anime::{AnimeInfo, AnimeEntry};
+use list::anime::{AnimeEntry, AnimeInfo};
 #[cfg(feature = "manga")]
-use list::manga::{MangaInfo, MangaEntry};
+use list::manga::{MangaEntry, MangaInfo};
 
 use failure::SyncFailure;
 use list::{List, SeriesInfo};
 use minidom::Element;
 use request::{Request, RequestError};
 use reqwest::StatusCode;
+use std::borrow::Cow;
 use std::convert::Into;
 
 #[derive(Fail, Debug)]
@@ -74,33 +75,43 @@ pub enum MALError {
 
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
 #[derive(Debug)]
-pub struct MAL {
+pub struct MAL<'a> {
     /// The user's name on MyAnimeList.
     pub username: String,
     /// The user's password on MyAnimeList.
     pub password: String,
     /// The client used to send requests to the API.
-    pub client: reqwest::Client,
+    pub client: Cow<'a, reqwest::Client>,
 }
 
-impl MAL {
+impl<'a> MAL<'a> {
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
-    ///
-    /// If you only need to retrieve the entries from a user's list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's list, then you do not need to
+    /// provide a valid password.
+    /// 
+    /// This function will create a new reqwest [`Client`] to send requests to MyAnimeList.
+    /// If you already have a [`Client`] that you only need to make synchronous requests with
+    /// and will that live as long as [`MAL`], then you should call [`with_client`] instead
+    /// with `Cow::Borrowed`.
+    /// 
+    /// [`Client`]: ./../reqwest/struct.Client.html
+    /// [`MAL`]: ./struct.MAL.html
+    /// [`with_client`]: #method.with_client
     #[inline]
-    pub fn new<S: Into<String>>(username: S, password: S) -> MAL {
-        MAL::with_client(username, password, reqwest::Client::new())
+    pub fn new<S: Into<String>>(username: S, password: S) -> MAL<'a> {
+        MAL::with_client(username, password, Cow::Owned(reqwest::Client::new()))
     }
 
     /// Creates a new instance of the MAL struct for interacting with the MyAnimeList API.
-    ///
-    /// If you only need to retrieve the entries from a user's list, then you do not need to provide a valid password.
+    /// If you only need to retrieve the entries from a user's list, then you do not need to
+    /// provide a valid password.
     #[inline]
-    pub fn with_client<S: Into<String>>(username: S, password: S, client: reqwest::Client) -> MAL {
+    pub fn with_client<S>(username: S, password: S, client: Cow<'a, reqwest::Client>) -> MAL<'a>
+        where S: Into<String> {
         MAL {
             username: username.into(),
             password: password.into(),
-            client,
+            client: client.into(),
         }
     }
 

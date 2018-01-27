@@ -226,7 +226,7 @@ pub struct List<'a, E: ListEntry> {
     /// A reference to the [`MAL`] instance used to perform operations on a user's list.
     /// 
     /// [`MAL`]: ../struct.MAL.html
-    pub mal: &'a MAL,
+    pub mal: &'a MAL<'a>,
     _list_entry: PhantomData<E>,
 }
 
