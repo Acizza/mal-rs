@@ -63,6 +63,7 @@ use request::{Request, RequestError};
 use reqwest::StatusCode;
 use std::borrow::Cow;
 use std::convert::Into;
+use std::fmt::{self, Debug};
 
 #[derive(Fail, Debug)]
 pub enum MALError {
@@ -74,7 +75,7 @@ pub enum MALError {
 }
 
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct MAL<'a> {
     /// The user's name on MyAnimeList.
     pub username: String,
@@ -239,5 +240,21 @@ impl<'a> MAL<'a> {
             Err(RequestError::BadResponseCode(StatusCode::Unauthorized)) => Ok(false),
             Err(err) => Err(MALError::Request(err)),
         }
+    }
+}
+
+// Automatically deriving Debug will display the plain-text password
+impl<'a> Debug for MAL<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MAL {{ username: {:?}, client: {:?} }}", self.username, self.client)
+    }
+}
+
+impl<'a> PartialEq for MAL<'a> {
+    #[inline]
+    fn eq(&self, other: &MAL<'a>) -> bool {
+        self.username == other.username &&
+        self.password == other.password
     }
 }
