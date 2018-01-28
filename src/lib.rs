@@ -1,5 +1,6 @@
 //! The purpose of this library is to provide high-level access to the MyAnimeList API.
-//! It allows you to search for anime / manga, as well as add, update, delete, and read anime / manga from a user's list.
+//! It allows you to add, update, delete, read, and search for anime / manga from a user's list,
+//! as well as verify user credentials.
 //! 
 //! All operations are centered around the [`MAL`] struct, as it stores the user credentials
 //! required to perform most operations on the API.
@@ -21,7 +22,7 @@
 //! let mal = MAL::new("username", "password");
 //! 
 //! // Search for "Toradora" on MyAnimeList
-//! let mut search_results = mal.search_anime("Toradora").unwrap();
+//! let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
 //! 
 //! // Use the first result's info
 //! let toradora_info = search_results.swap_remove(0);
@@ -52,13 +53,12 @@ extern crate minidom;
 extern crate reqwest;
 
 #[cfg(feature = "anime")]
-use list::anime::{AnimeEntry, AnimeInfo};
+use list::anime::AnimeEntry;
 #[cfg(feature = "manga")]
-use list::manga::{MangaEntry, MangaInfo};
+use list::manga::MangaEntry;
 
 use failure::SyncFailure;
 use list::{List, ListError, SeriesInfo};
-use minidom::Element;
 use request::{Request, RequestError};
 use reqwest::StatusCode;
 use std::borrow::Cow;
@@ -119,91 +119,7 @@ impl<'a> MAL<'a> {
         }
     }
 
-    /// Searches MyAnimeList for an anime and returns all found results.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use mal::MAL;
-    ///
-    /// let mal = MAL::new("username", "password");
-    /// let found = mal.search_anime("Cowboy Bebop").unwrap();
-    /// ```
-    #[cfg(feature = "anime")]
-    #[inline]
-    pub fn search_anime<S>(&self, name: S) -> Result<Vec<AnimeInfo>, MALError>
-        where S: AsRef<str> {
-        self.search::<AnimeInfo, S>(name)
-    }
-
-    /// Searches MyAnimeList for a manga and returns all found results.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use mal::MAL;
-    ///
-    /// let mal = MAL::new("username", "password");
-    /// let found = mal.search_manga("Bleach").unwrap();
-    /// ```
-    #[cfg(feature = "manga")]
-    #[inline]
-    pub fn search_manga<S>(&self, name: S) -> Result<Vec<MangaInfo>, MALError>
-        where S: AsRef<str> {
-        self.search::<MangaInfo, S>(name)
-    }
-
-    /// Searches MyAnimeList for the type of series specified by the `I` type parameter
-    /// and returns all found results.
-    /// 
-    /// If you aren't writing generic code over the [`SeriesInfo`] trait, you should
-    /// ideally use the [`search_anime`] and [`search_manga`] methods instead to
-    /// avoid ever accidentally searching for the wrong type of series.
-    /// 
-    /// [`SeriesInfo`]: ./list/trait.SeriesInfo.html
-    /// [`search_anime`]: #method.search_anime
-    /// [`search_manga`]: #method.search_manga
-    /// 
-    /// # Examples
-    /// 
-    /// ```no_run
-    /// use mal::MAL;
-    /// use mal::list::anime::AnimeInfo;
-    /// 
-    /// let mal = MAL::new("username", "password");
-    /// let found: Vec<AnimeInfo> = mal.search("Cowboy Bebop").unwrap();
-    /// ```
-    pub fn search<I, S>(&self, name: S) -> Result<Vec<I>, MALError>
-        where I: SeriesInfo, S: AsRef<str> {
-        let resp = {
-            let result = Request::Search(name.as_ref(), I::list_type()).send(self);
-
-            match result {
-                Ok(resp) => resp,
-                Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
-                    return Ok(Vec::new());
-                },
-                Err(err) => return Err(MALError::Request(err)),
-            }
-        };
-
-        let root: Element = resp
-            .parse()
-            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
-
-        let mut entries = Vec::new();
-
-        for child in root.children() {
-            let entry = I::parse_search_result(child)
-                .map_err(MALError::List)?;
-
-            entries.push(entry);
-        }
-
-        Ok(entries)
-    }
-
-    /// Returns a new [`List`] instance that performs operations on the user's anime list.
+    /// Returns a new [`List`] instance to perform anime list operations.
     /// 
     /// [`List`]: ./list/struct.List.html
     #[cfg(feature = "anime")]
@@ -212,7 +128,7 @@ impl<'a> MAL<'a> {
         List::<AnimeEntry>::new(self)
     }
 
-    /// Returns a new [`List`] instance that performs operations on the user's manga list.
+    /// Returns a new [`List`] instance to perform manga list operations.
     /// 
     /// [`List`]: ./list/struct.List.html
     #[cfg(feature = "manga")]

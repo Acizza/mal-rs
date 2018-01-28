@@ -1,5 +1,5 @@
 //! This module provides generic functionality for adding, updating, deleting, and reading entries
-//! from a user's anime / manga list.
+//! from a user's anime / manga list, as well as searching for an anime / manga series.
 //! 
 //! All functions that perform operations on a user's list are located in the [`List`] struct,
 //! and list-specific data structures are located in the [`anime`] and [`manga`] modules.
@@ -21,7 +21,7 @@
 //! let mal = MAL::new("username", "password");
 //! 
 //! // Search for "Toradora" on MyAnimeList
-//! let mut search_results = mal.search_anime("Toradora").unwrap();
+//! let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
 //! 
 //! // Use the first result's info
 //! let toradora_info = search_results.swap_remove(0);
@@ -92,7 +92,9 @@ use chrono::NaiveDate;
 use failure::SyncFailure;
 use {MAL, MALError};
 use minidom::Element;
+use RequestError;
 use request::{ListType, Request};
+use reqwest::StatusCode;
 use std::fmt::{self, Display, Debug};
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -211,7 +213,8 @@ pub enum ListError {
     XMLConversionFailed(String),
 }
 
-/// This struct allows you to add, update, delete, and read entries to / from a user's list.
+/// This struct allows you to add, update, delete, and read entries to / from a user's list,
+/// as well as search for an anime / manga series.
 /// 
 /// The `E` type parameter dictates what type of list is will be modified when performing operations.
 /// 
@@ -249,13 +252,63 @@ pub struct List<'a, E: ListEntry> {
 }
 
 impl<'a, E: ListEntry> List<'a, E> {
-    /// Creates a new `List` instance for performing operations on a user's list.
+    /// Creates a new [`List`] instance for performing operations on a user's list.
+    /// 
+    /// [`List`]: ./struct.List.html
     #[inline]
     pub fn new(mal: &'a MAL) -> List<'a, E> {
         List {
             mal,
             _list_entry: PhantomData,
         }
+    }
+
+    /// Searches MyAnimeList for the type of series defined by the [`List`] instance
+    /// and returns all found results.
+    /// 
+    /// [`List`]: ./struct.List.html
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use mal::MAL;
+    /// 
+    /// let mal = MAL::new("username", "password");
+    /// 
+    /// // Search for the anime series "Cowboy Bebop"
+    /// let found_anime = mal.anime_list().search_for("Cowboy Bebop").unwrap();
+    /// 
+    /// // Search for the manga series "Bleach"
+    /// let found_manga = mal.manga_list().search_for("Bleach").unwrap();
+    /// ```
+    pub fn search_for<S>(&self, name: S) -> Result<Vec<E::Info>, MALError>
+        where S: AsRef<str> {
+        let resp = {
+            let result = Request::Search(name.as_ref(), E::list_type()).send(self.mal);
+
+            match result {
+                Ok(resp) => resp,
+                Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
+                    return Ok(Vec::new());
+                },
+                Err(err) => return Err(MALError::Request(err)),
+            }
+        };
+
+        let root: Element = resp
+            .parse()
+            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
+
+        let mut entries = Vec::new();
+
+        for child in root.children() {
+            let entry = E::Info::parse_search_result(child)
+                .map_err(MALError::List)?;
+
+            entries.push(entry);
+        }
+
+        Ok(entries)
     }
 
     /// Requests and parses all entries on a user's list.
@@ -323,7 +376,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// let mal = MAL::new("username", "password");
     /// 
     /// // Search for "Toradora" on MyAnimeList
-    /// let mut search_results = mal.search_anime("Toradora").unwrap();
+    /// let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
     /// 
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
@@ -472,7 +525,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// let mal = MAL::new("username", "password");
     /// 
     /// // Search for "Toradora" on MyAnimeList
-    /// let mut search_results = mal.search_anime("Toradora").unwrap();
+    /// let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
     /// 
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
@@ -656,17 +709,9 @@ pub struct ListEntries<E: ListEntry> {
     pub entries: Vec<E>,
 }
 
-/// Used for types that contain basic series information.
-pub trait SeriesInfo where Self: Sized {
-    #[doc(hidden)]
-    fn parse_search_result(xml_elem: &Element) -> Result<Self, ListError>;
-
-    #[doc(hidden)]
-    fn list_type() -> ListType;
-}
-
 /// Represents an entry on a user's list.
 pub trait ListEntry where Self: Sized {
+    type Info: SeriesInfo;
     type Values: EntryValues;
     type UserInfo: UserInfo;
 
@@ -684,6 +729,12 @@ pub trait ListEntry where Self: Sized {
 
     #[doc(hidden)]
     fn list_type() -> ListType;
+}
+
+/// Used for types that contain basic series information.
+pub trait SeriesInfo where Self: Sized {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<Self, ListError>;
 }
 
 /// Represents values on a user's list that can be set.

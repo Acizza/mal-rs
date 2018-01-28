@@ -56,11 +56,6 @@ impl SeriesInfo for AnimeInfo {
 
         Ok(entry)
     }
-
-    #[doc(hidden)]
-    fn list_type() -> ListType {
-        ListType::Anime
-    }
 }
 
 impl PartialEq for AnimeInfo {
@@ -131,7 +126,7 @@ impl AnimeEntry {
     /// let mal = MAL::new("username", "password");
     ///
     /// // Search for Toradora on MAL
-    /// let mut results = mal.search_anime("Toradora").unwrap();
+    /// let mut results = mal.anime_list().search_for("Toradora").unwrap();
     ///
     /// // Select the first result
     /// let toradora_info = results.swap_remove(0);
@@ -150,6 +145,7 @@ impl AnimeEntry {
 }
 
 impl ListEntry for AnimeEntry {
+    type Info = AnimeInfo;
     type Values = AnimeValues;
     type UserInfo = AnimeUserInfo;
 

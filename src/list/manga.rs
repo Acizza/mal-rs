@@ -62,11 +62,6 @@ impl SeriesInfo for MangaInfo {
 
         Ok(entry)
     }
-
-    #[doc(hidden)]
-    fn list_type() -> ListType {
-        ListType::Manga
-    }
 }
 
 impl PartialEq for MangaInfo {
@@ -131,7 +126,7 @@ impl MangaEntry {
     /// let mal = MAL::new("username", "password");
     ///
     /// // Search for Bleach on MAL
-    /// let mut results = mal.search_manga("Bleach").unwrap();
+    /// let mut results = mal.manga_list().search_for("Bleach").unwrap();
     ///
     /// // Select the first result
     /// let bleach_info = results.swap_remove(0);
@@ -150,6 +145,7 @@ impl MangaEntry {
 }
 
 impl ListEntry for MangaEntry {
+    type Info = MangaInfo;
     type Values = MangaValues;
     type UserInfo = MangaUserInfo;
 
