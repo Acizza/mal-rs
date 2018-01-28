@@ -57,7 +57,7 @@ use list::anime::{AnimeEntry, AnimeInfo};
 use list::manga::{MangaEntry, MangaInfo};
 
 use failure::SyncFailure;
-use list::{List, SeriesInfo};
+use list::{List, ListError, SeriesInfo};
 use minidom::Element;
 use request::{Request, RequestError};
 use reqwest::StatusCode;
@@ -68,10 +68,13 @@ use std::fmt::{self, Debug};
 #[derive(Fail, Debug)]
 pub enum MALError {
     #[fail(display = "{}", _0)]
+    Minidom(#[cause] SyncFailure<::minidom::error::Error>),
+
+    #[fail(display = "{}", _0)]
     Request(#[cause] ::request::RequestError),
 
-    #[fail(display = "internal error: {}", _0)]
-    Internal(::failure::Error),
+    #[fail(display = "{}", _0)]
+    List(#[cause] ListError),
 }
 
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
@@ -186,13 +189,13 @@ impl<'a> MAL<'a> {
 
         let root: Element = resp
             .parse()
-            .map_err(|e| MALError::Internal(SyncFailure::new(e).into()))?;
+            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
 
         let mut entries = Vec::new();
 
         for child in root.children() {
             let entry = I::parse_search_result(child)
-                .map_err(MALError::Internal)?;
+                .map_err(MALError::List)?;
 
             entries.push(entry);
         }

@@ -89,7 +89,7 @@
 //! ```
 
 use chrono::NaiveDate;
-use failure::{Error, SyncFailure};
+use failure::SyncFailure;
 use {MAL, MALError};
 use minidom::Element;
 use request::{ListType, Request};
@@ -186,11 +186,29 @@ pub mod manga;
 
 #[derive(Fail, Debug)]
 pub enum ListError {
+    #[fail(display = "{}", _0)]
+    Io(#[cause] ::std::io::Error),
+
+    #[fail(display = "{}", _0)]
+    Minidom(#[cause] SyncFailure<::minidom::error::Error>),
+
+    #[fail(display = "{}", _0)]
+    Utf8(#[cause] ::std::string::FromUtf8Error),
+
     #[fail(display = "no user info found")]
     NoUserInfoFound,
 
     #[fail(display = "\"{}\" does not map to a known series status", _0)]
-    UnknownStatus(i32),
+    UnknownStatus(String),
+
+    #[fail(display = "\"{}\" does not map to a known series type", _0)]
+    UnknownSeriesType(String),
+
+    #[fail(display = "no XML node named \"{}\"", _0)]
+    MissingXMLNode(String),
+
+    #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
+    XMLConversionFailed(String),
 }
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list.
@@ -263,22 +281,22 @@ impl<'a, E: ListEntry> List<'a, E> {
 
         let root: Element = resp
             .parse()
-            .map_err(|e| MALError::Internal(SyncFailure::new(e).into()))?;
+            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
 
         let mut children = root.children();
 
         let user_info = {
             let elem = children
                 .next()
-                .ok_or_else(|| MALError::Internal(ListError::NoUserInfoFound.into()))?;
+                .ok_or_else(|| MALError::List(ListError::NoUserInfoFound))?;
 
-            UserInfo::parse(elem).map_err(MALError::Internal)?
+            UserInfo::from_xml(elem).map_err(MALError::List)?
         };
 
         let mut entries = Vec::new();
 
         for child in children {
-            let entry = E::parse(child).map_err(MALError::Internal)?;
+            let entry = E::from_xml(child).map_err(MALError::List)?;
             entries.push(entry);
         }
 
@@ -353,7 +371,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// mal.anime_list().add_id(4224, &mut values).unwrap();
     /// ```
     pub fn add_id(&self, id: u32, values: &mut E::Values) -> Result<(), MALError> {
-        let body = values.generate_xml().map_err(MALError::Internal)?;
+        let body = values.generate_xml().map_err(MALError::List)?;
 
         Request::Add(id, E::list_type(), &body)
             .send(self.mal)
@@ -431,7 +449,7 @@ impl<'a, E: ListEntry> List<'a, E> {
     /// mal.anime_list().update_id(4224, &mut values).unwrap();
     /// ```
     pub fn update_id(&self, id: u32, values: &mut E::Values) -> Result<(), MALError> {
-        let body = values.generate_xml().map_err(MALError::Internal)?;
+        let body = values.generate_xml().map_err(MALError::List)?;
 
         Request::Update(id, E::list_type(), &body)
             .send(self.mal)
@@ -502,71 +520,6 @@ impl<'a, E: ListEntry> List<'a, E> {
         
         Ok(())
     }
-}
-
-/// Contains the results from parsing a user's list.
-#[derive(Debug)]
-pub struct ListEntries<E: ListEntry> {
-    /// General list statistics and info about the user.
-    pub user_info: E::UserInfo,
-    /// The list's entries.
-    pub entries: Vec<E>,
-}
-
-/// Used for types that contain basic series information.
-pub trait SeriesInfo where Self: Sized {
-    #[doc(hidden)]
-    fn parse_search_result(xml_elem: &Element) -> Result<Self, Error>;
-
-    #[doc(hidden)]
-    fn list_type() -> ListType;
-}
-
-/// Represents an entry on a user's list.
-pub trait ListEntry where Self: Sized {
-    type Values: EntryValues;
-    type UserInfo: UserInfo;
-
-    #[doc(hidden)]
-    fn parse(xml_elem: &Element) -> Result<Self, Error>;
-
-    #[doc(hidden)]
-    fn values_mut(&mut self) -> &mut Self::Values;
-
-    #[doc(hidden)]
-    fn set_last_updated_time(&mut self);
-
-    #[doc(hidden)]
-    fn id(&self) -> u32;
-
-    #[doc(hidden)]
-    fn list_type() -> ListType;
-}
-
-/// Represents values on a user's list that can be set.
-pub trait EntryValues {
-    #[doc(hidden)]
-    fn generate_xml(&self) -> Result<String, Error> {
-        let mut entry = Element::bare("entry");
-        self.add_changed_values(&mut entry);
-
-        let mut buffer = Vec::new();
-        entry.write_to(&mut buffer).map_err(SyncFailure::new)?;
-
-        Ok(String::from_utf8(buffer)?)
-    }
-
-    #[doc(hidden)]
-    fn add_changed_values(&self, xml_elem: &mut Element);
-
-    #[doc(hidden)]
-    fn reset_changed_fields(&mut self);
-}
-
-/// Represents info about a user's list.
-pub trait UserInfo where Self: Sized {
-    #[doc(hidden)]
-    fn parse(xml_elem: &Element) -> Result<Self, Error>;
 }
 
 /// Represents the watching / reading status of a series.
@@ -652,25 +605,16 @@ impl<T: Debug + Default + Clone> From<T> for ChangeTracker<T> {
     }
 }
 
-#[derive(Fail, Debug)]
-enum ParseXMLError {
-    #[fail(display = "no XML node named \"{}\"", _0)]
-    MissingXMLNode(String),
-
-    #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
-    ConversionFailed(String),
-}
-
-fn parse_xml_child<T: FromStr>(elem: &Element, name: &str) -> Result<T, ParseXMLError> {
+fn parse_xml_child<T: FromStr>(elem: &Element, name: &str) -> Result<T, ListError> {
     let text = elem.children()
         .find(|c| c.name() == name)
-        .ok_or_else(|| ParseXMLError::MissingXMLNode(name.into()))?
+        .ok_or_else(|| ListError::MissingXMLNode(name.into()))?
         .texts()
         .next()
         .unwrap_or("");
 
     text.parse::<T>()
-        .map_err(|_| ParseXMLError::ConversionFailed(name.into()))
+        .map_err(|_| ListError::XMLConversionFailed(name.into()))
 }
 
 fn parse_str_date(date: &str) -> Option<NaiveDate> {
@@ -701,4 +645,69 @@ fn split_by_delim(string: &str, delim: &str) -> Vec<String> {
 
 fn concat_by_delim(tags: &[String], delim: char) -> String {
     tags.iter().map(|tag| format!("{}{}", tag, delim)).collect()
+}
+
+/// Contains the results from parsing a user's list.
+#[derive(Debug)]
+pub struct ListEntries<E: ListEntry> {
+    /// General list statistics and info about the user.
+    pub user_info: E::UserInfo,
+    /// The list's entries.
+    pub entries: Vec<E>,
+}
+
+/// Used for types that contain basic series information.
+pub trait SeriesInfo where Self: Sized {
+    #[doc(hidden)]
+    fn parse_search_result(xml_elem: &Element) -> Result<Self, ListError>;
+
+    #[doc(hidden)]
+    fn list_type() -> ListType;
+}
+
+/// Represents an entry on a user's list.
+pub trait ListEntry where Self: Sized {
+    type Values: EntryValues;
+    type UserInfo: UserInfo;
+
+    #[doc(hidden)]
+    fn from_xml(xml_elem: &Element) -> Result<Self, ListError>;
+
+    #[doc(hidden)]
+    fn values_mut(&mut self) -> &mut Self::Values;
+
+    #[doc(hidden)]
+    fn set_last_updated_time(&mut self);
+
+    #[doc(hidden)]
+    fn id(&self) -> u32;
+
+    #[doc(hidden)]
+    fn list_type() -> ListType;
+}
+
+/// Represents values on a user's list that can be set.
+pub trait EntryValues {
+    #[doc(hidden)]
+    fn generate_xml(&self) -> Result<String, ListError> {
+        let mut entry = Element::bare("entry");
+        self.add_changed_values(&mut entry);
+
+        let mut buffer = Vec::new();
+        entry.write_to(&mut buffer).map_err(|e| ListError::Minidom(SyncFailure::new(e)))?;
+
+        String::from_utf8(buffer).map_err(ListError::Utf8)
+    }
+
+    #[doc(hidden)]
+    fn add_changed_values(&self, xml_elem: &mut Element);
+
+    #[doc(hidden)]
+    fn reset_changed_fields(&mut self);
+}
+
+/// Represents info about a user's list.
+pub trait UserInfo where Self: Sized {
+    #[doc(hidden)]
+    fn from_xml(xml_elem: &Element) -> Result<Self, ListError>;
 }

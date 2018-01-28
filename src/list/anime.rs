@@ -2,21 +2,11 @@
 //! perform operations on a user's anime list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use failure::Error;
 use list::{self, ListError, Status};
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
 use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
-
-#[derive(Fail, Debug)]
-pub enum AnimeError {
-    #[fail(display = "\"{}\" does not map to a known airing status", _0)]
-    UnknownAirStatus(String),
-
-    #[fail(display = "\"{}\" does not map to a known series type", _0)] 
-    UnknownSeriesType(String),
-}
 
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
@@ -43,7 +33,7 @@ pub struct AnimeInfo {
 
 impl SeriesInfo for AnimeInfo {
     #[doc(hidden)]
-    fn parse_search_result(xml: &Element) -> Result<AnimeInfo, Error> {
+    fn parse_search_result(xml: &Element) -> Result<AnimeInfo, ListError> {
         let entry = AnimeInfo {
             id: list::parse_xml_child(xml, "id")?,
             title: list::parse_xml_child(xml, "title")?,
@@ -53,11 +43,11 @@ impl SeriesInfo for AnimeInfo {
             episodes: list::parse_xml_child(xml, "episodes")?,
             airing_status: {
                 let status = list::parse_xml_child(xml, "status")?;
-                AiringStatus::from_str(&status).ok_or_else(|| AnimeError::UnknownAirStatus(status))?
+                AiringStatus::from_str(&status).ok_or_else(|| ListError::UnknownStatus(status))?
             },
             series_type: {
                 let s_type = list::parse_xml_child(xml, "type")?;
-                AnimeType::from_str(&s_type).ok_or_else(|| AnimeError::UnknownSeriesType(s_type))?
+                AnimeType::from_str(&s_type).ok_or_else(|| ListError::UnknownSeriesType(s_type))?
             },
             start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),
@@ -164,7 +154,7 @@ impl ListEntry for AnimeEntry {
     type UserInfo = AnimeUserInfo;
 
     #[doc(hidden)]
-    fn parse(xml: &Element) -> Result<AnimeEntry, Error> {
+    fn from_xml(xml: &Element) -> Result<AnimeEntry, ListError> {
         let info = AnimeInfo {
             id: list::parse_xml_child(xml, "series_animedb_id")?,
             title: list::parse_xml_child(xml, "series_title")?,
@@ -179,13 +169,13 @@ impl ListEntry for AnimeEntry {
                 let status = list::parse_xml_child(xml, "series_status")?;
 
                 AiringStatus::from_i32(status)
-                    .ok_or_else(|| AnimeError::UnknownAirStatus(status.to_string()))?
+                    .ok_or_else(|| ListError::UnknownStatus(status.to_string()))?
             },
             series_type: {
                 let s_type = list::parse_xml_child(xml, "series_type")?;
 
                 AnimeType::from_i32(s_type)
-                    .ok_or_else(|| AnimeError::UnknownSeriesType(s_type.to_string()))?
+                    .ok_or_else(|| ListError::UnknownSeriesType(s_type.to_string()))?
             },
             start_date: {
                 list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_start")?)
@@ -197,7 +187,7 @@ impl ListEntry for AnimeEntry {
         let entry = AnimeEntry {
             series_info: info,
             last_updated_time: Utc.timestamp(list::parse_xml_child(xml, "my_last_updated")?, 0),
-            values: AnimeValues::parse(xml)?,
+            values: AnimeValues::from_xml(xml)?,
         };
 
         Ok(entry)
@@ -271,7 +261,7 @@ impl AnimeValues {
         AnimeValues::default()
     }
 
-    fn parse(xml: &Element) -> Result<AnimeValues, Error> {
+    fn from_xml(xml: &Element) -> Result<AnimeValues, ListError> {
         let values = AnimeValues {
             watched_episodes: list::parse_xml_child::<u32>(xml, "my_watched_episodes")?.into(),
             start_date: {
@@ -285,7 +275,7 @@ impl AnimeValues {
                 let status_num = list::parse_xml_child(xml, "my_status")?;
 
                 Status::from_i32(status_num)
-                    .ok_or_else(|| ListError::UnknownStatus(status_num))?
+                    .ok_or_else(|| ListError::UnknownStatus(status_num.to_string()))?
                     .into()
             },
             score: list::parse_xml_child::<u8>(xml, "my_score")?.into(),
@@ -360,7 +350,7 @@ pub struct AnimeUserInfo {
 
 impl UserInfo for AnimeUserInfo {
     #[doc(hidden)]
-    fn parse(xml: &Element) -> Result<AnimeUserInfo, Error> {
+    fn from_xml(xml: &Element) -> Result<AnimeUserInfo, ListError> {
         let info = AnimeUserInfo {
             user_id: list::parse_xml_child(xml, "user_id")?,
             watching: list::parse_xml_child(xml, "user_watching")?,
