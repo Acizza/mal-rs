@@ -2,12 +2,6 @@ use MAL;
 use reqwest::{self, RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ListType {
-    Anime,
-    Manga,
-}
-
 #[derive(Fail, Debug)]
 pub enum RequestError {
     #[fail(display = "received bad response code from MAL: {}", _0)]
@@ -18,6 +12,16 @@ pub enum RequestError {
 
     #[fail(display = "failed to read response text: {}", _0)]
     ReadResponse(#[cause] reqwest::Error),
+}
+
+lazy_static! {
+    static ref BASE_URL: Url = Url::parse("https://myanimelist.net").unwrap();
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ListType {
+    Anime,
+    Manga,
 }
 
 pub type ID = u32;
@@ -36,13 +40,7 @@ pub enum Request<'a> {
 }
 
 impl<'a> Request<'a> {
-    pub const BASE_URL: &'static str = "https://myanimelist.net";
-
     fn send_req(self, mal: &MAL) -> Result<Response, RequestError> {
-        lazy_static! {
-            static ref BASE_URL: Url = Url::parse(Request::BASE_URL).unwrap();
-        }
-
         let mut url = BASE_URL.clone();
         use self::Request::*;
 
