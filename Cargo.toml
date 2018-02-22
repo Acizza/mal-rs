@@ -13,7 +13,7 @@ license = "MIT"
 chrono      = "0.4"
 failure     = "0.1"
 lazy_static = "1.0"
-minidom     = "0.7"
+minidom     = "0.8"
 reqwest     = "0.8"
 
 [features]

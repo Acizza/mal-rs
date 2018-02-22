@@ -1,101 +1,100 @@
 //! This module provides generic functionality for adding, updating, deleting, and reading entries
 //! from a user's anime / manga list, as well as searching for an anime / manga series.
-//! 
+//!
 //! All functions that perform operations on a user's list are located in the [`List`] struct,
 //! and list-specific data structures are located in the [`anime`] and [`manga`] modules.
-//! 
+//!
 //! [`List`]: ./struct.List.html
 //! [`anime`]: ./anime/index.html
 //! [`manga`]: ./manga/index.html
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! Adding an anime to a user's list:
-//! 
+//!
 //! ```no_run
 //! use mal::MAL;
 //! use mal::list::Status;
 //! use mal::list::anime::AnimeEntry;
-//! 
+//!
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
-//! 
+//!
 //! // Search for "Toradora" on MyAnimeList
 //! let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
-//! 
+//!
 //! // Use the first result's info
 //! let toradora_info = search_results.swap_remove(0);
-//! 
+//!
 //! // Create a new anime list entry with Toradora's info
 //! let mut entry = AnimeEntry::new(toradora_info);
-//! 
+//!
 //! // Set the entry's watched episodes to 5 and status to watching
 //! entry.values
 //!      .set_watched_episodes(5)
 //!      .set_status(Status::WatchingOrReading);
-//! 
+//!
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&mut entry).unwrap();
 //! ```
-//! 
+//!
 //! Updating a manga on a user's list by its ID:
-//! 
+//!
 //! ```no_run
 //! use mal::MAL;
 //! use mal::list::Status;
 //! use mal::list::manga::MangaValues;
-//! 
+//!
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
-//! 
+//!
 //! // Create new entry values
 //! let mut values = MangaValues::new();
-//! 
+//!
 //! // Set the number of read chapters to 25, read volumes to 2, score to 10, and status to completed
 //! values.set_read_chapters(25)
 //!       .set_read_volumes(2)
 //!       .set_score(10)
 //!       .set_status(Status::Completed);
-//! 
+//!
 //! // Update the entry with an id of 2 (Berserk) on the user's manga list with the specified values
 //! mal.manga_list().update_id(2, &mut values).unwrap();
 //! ```
-//! 
+//!
 //! Retrieving an anime off of a user's list and updating it:
-//! 
+//!
 //! ```no_run
 //! use mal::MAL;
 //! use mal::list::Status;
-//! 
+//!
 //! // Create a new MAL instance
 //! let mal = MAL::new("username", "password");
-//! 
+//!
 //! // Read the user's anime list
 //! let list = mal.anime_list().read().unwrap();
-//! 
+//!
 //! // Find the first series on the user's list that's being watched
 //! let mut entry = list.entries.into_iter().find(|e| {
 //!     e.values.status() == Status::WatchingOrReading
 //! }).unwrap();
-//! 
+//!
 //! // Set the entrie's watched episodes to its total episodes, its score to 10, and status to completed
 //! entry.values
 //!      .set_watched_episodes(entry.series_info.episodes)
 //!      .set_score(10)
 //!      .set_status(Status::Completed);
-//! 
+//!
 //! // Update the entry on the user's anime list with the new values
 //! mal.anime_list().update(&mut entry).unwrap();
 //! ```
 
 use chrono::NaiveDate;
-use failure::SyncFailure;
-use {MAL, MALError};
+use {MALError, MAL};
 use minidom::Element;
 use RequestError;
 use request::{ListType, Request};
 use reqwest::StatusCode;
-use std::fmt::{self, Display, Debug};
+use std::fmt::{self, Debug, Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -192,7 +191,7 @@ pub enum ListError {
     Io(#[cause] ::std::io::Error),
 
     #[fail(display = "{}", _0)]
-    Minidom(#[cause] SyncFailure<::minidom::error::Error>),
+    Minidom(#[cause] ::minidom::error::Error),
 
     #[fail(display = "{}", _0)]
     Utf8(#[cause] ::std::string::FromUtf8Error),
@@ -215,37 +214,37 @@ pub enum ListError {
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list,
 /// as well as search for an anime / manga series.
-/// 
+///
 /// The `E` type parameter dictates what type of list is will be modified when performing operations.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// use mal::MAL;
 /// use mal::list::{List, Status};
 /// use mal::list::anime::{AnimeEntry, AnimeValues};
-/// 
+///
 /// // Create a new MAL instance
 /// let mal = MAL::new("username", "password");
-/// 
+///
 /// // Create a new List that will operate on a user's anime list.
 /// // (note that you can also just call mal.anime_list() here, which does the same thing)
 /// let anime_list = List::<AnimeEntry>::new(&mal);
-/// 
+///
 /// // Create new anime entry values
 /// let mut values = AnimeValues::new();
-/// 
+///
 /// // Set the watched episode count to 25, and status to completed
 /// values.set_watched_episodes(25)
 ///       .set_status(Status::Completed);
-/// 
+///
 /// // Add the anime with ID 4224 (Toradora) to a user's anime list with the values set above
 /// anime_list.add_id(4224, &mut values).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct List<'a, E: ListEntry> {
     /// A reference to the [`MAL`] instance used to perform operations on a user's list.
-    /// 
+    ///
     /// [`MAL`]: ../struct.MAL.html
     pub mal: &'a MAL<'a>,
     _list_entry: PhantomData<E>,
@@ -253,7 +252,7 @@ pub struct List<'a, E: ListEntry> {
 
 impl<'a, E: ListEntry> List<'a, E> {
     /// Creates a new [`List`] instance for performing operations on a user's list.
-    /// 
+    ///
     /// [`List`]: ./struct.List.html
     #[inline]
     pub fn new(mal: &'a MAL) -> List<'a, E> {
@@ -265,24 +264,26 @@ impl<'a, E: ListEntry> List<'a, E> {
 
     /// Searches MyAnimeList for the type of series defined by the [`List`] instance
     /// and returns all found results.
-    /// 
+    ///
     /// [`List`]: ./struct.List.html
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
-    /// 
+    ///
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Search for the anime series "Cowboy Bebop"
     /// let found_anime = mal.anime_list().search_for("Cowboy Bebop").unwrap();
-    /// 
+    ///
     /// // Search for the manga series "Bleach"
     /// let found_manga = mal.manga_list().search_for("Bleach").unwrap();
     /// ```
     pub fn search_for<S>(&self, name: S) -> Result<Vec<E::Info>, MALError>
-        where S: AsRef<str> {
+    where
+        S: AsRef<str>,
+    {
         let resp = {
             let result = Request::Search(name.as_ref(), E::list_type()).send(self.mal);
 
@@ -290,21 +291,17 @@ impl<'a, E: ListEntry> List<'a, E> {
                 Ok(resp) => resp,
                 Err(RequestError::BadResponseCode(StatusCode::NoContent)) => {
                     return Ok(Vec::new());
-                },
+                }
                 Err(err) => return Err(MALError::Request(err)),
             }
         };
 
-        let root: Element = resp
-            .parse()
-            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
+        let root: Element = resp.parse().map_err(MALError::Minidom)?;
 
         let mut entries = Vec::new();
 
         for child in root.children() {
-            let entry = E::Info::parse_search_result(child)
-                .map_err(MALError::List)?;
-
+            let entry = E::Info::parse_search_result(child).map_err(MALError::List)?;
             entries.push(entry);
         }
 
@@ -312,18 +309,18 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Requests and parses all entries on a user's list.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Read the user's anime list
     /// let list = mal.anime_list().read().unwrap();
-    /// 
+    ///
     /// println!("{:?}", list.user_info);
     /// println!("{:?}", list.entries);
     /// ```
@@ -332,10 +329,7 @@ impl<'a, E: ListEntry> List<'a, E> {
             .send(self.mal)
             .map_err(MALError::Request)?;
 
-        let root: Element = resp
-            .parse()
-            .map_err(|e| MALError::Minidom(SyncFailure::new(e)))?;
-
+        let root: Element = resp.parse().map_err(MALError::Minidom)?;
         let mut children = root.children();
 
         let user_info = {
@@ -353,42 +347,37 @@ impl<'a, E: ListEntry> List<'a, E> {
             entries.push(entry);
         }
 
-        let entries = ListEntries {
-            user_info,
-            entries,
-        };
-
-        Ok(entries)
+        Ok(ListEntries { user_info, entries })
     }
 
     /// Adds an entry to a user's list.
-    /// 
+    ///
     /// If the entry is already on a user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
     /// use mal::list::Status;
     /// use mal::list::anime::AnimeEntry;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Search for "Toradora" on MyAnimeList
     /// let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
-    /// 
+    ///
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
-    /// 
+    ///
     /// // Create a new anime list entry with Toradora's info
     /// let mut entry = AnimeEntry::new(toradora_info);
-    /// 
+    ///
     /// // Set the entry's watched episodes to 5 and status to watching
     /// entry.values
     ///      .set_watched_episodes(5)
     ///      .set_status(Status::WatchingOrReading);
-    /// 
+    ///
     /// // Add the entry to the user's anime list
     /// mal.anime_list().add(&mut entry).unwrap();
     /// ```
@@ -400,26 +389,26 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Adds an entry to a user's list by id.
-    /// 
+    ///
     /// If the entry is already on a user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
     /// use mal::list::Status;
     /// use mal::list::anime::AnimeValues;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Create new entry values
     /// let mut values = AnimeValues::new();
-    /// 
+    ///
     /// // Set the number of watched episodes to 5 and the status to watching
     /// values.set_watched_episodes(5)
     ///       .set_status(Status::WatchingOrReading);
-    /// 
+    ///
     /// // Add an entry with an id of 4224 (Toradora) to the user's anime list
     /// mal.anime_list().add_id(4224, &mut values).unwrap();
     /// ```
@@ -435,37 +424,37 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Updates an entry on a user's list.
-    /// 
+    ///
     /// If the entry is already on a user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
     /// use mal::list::Status;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Get a handle to the user's anime list
     /// let anime_list = mal.anime_list();
-    /// 
+    ///
     /// // Read the user's anime list
     /// let list = anime_list.read().unwrap();
-    /// 
+    ///
     /// // Find Toradora in the list entries
     /// let mut toradora = list
     ///     .entries
     ///     .into_iter()
     ///     .find(|e| e.series_info.id == 4224).unwrap();
-    /// 
+    ///
     /// // Set new values for the list entry
     /// // In this case, the episode count will be updated to 25, the score will be set to 10, and the status will be set to completed
     /// toradora.values
     ///         .set_watched_episodes(25)
     ///         .set_score(10)
     ///         .set_status(Status::Completed);
-    /// 
+    ///
     /// // Update the anime on the user's list
     /// anime_list.update(&mut toradora).unwrap();
     /// ```
@@ -477,27 +466,27 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Updates an entry on a user's list by id.
-    /// 
+    ///
     /// If the entry is already on the user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
     /// use mal::list::Status;
     /// use mal::list::anime::AnimeValues;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Create new entry values
     /// let mut values = AnimeValues::new();
-    /// 
+    ///
     /// // Set the number of watched episodes to 25, score to 10, and status to completed
     /// values.set_watched_episodes(25)
     ///       .set_score(10)
     ///       .set_status(Status::Completed);
-    /// 
+    ///
     /// // Update the entry with an id of 4224 (Toradora) on the user's anime list
     /// mal.anime_list().update_id(4224, &mut values).unwrap();
     /// ```
@@ -513,35 +502,35 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Removes an entry from a user's list.
-    /// 
+    ///
     /// If the entry isn't already on a user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Search for "Toradora" on MyAnimeList
     /// let mut search_results = mal.anime_list().search_for("Toradora").unwrap();
-    /// 
+    ///
     /// // Use the first result's info
     /// let toradora_info = search_results.swap_remove(0);
-    /// 
+    ///
     /// // Get a handle to the user's anime list
     /// let anime_list = mal.anime_list();
-    /// 
+    ///
     /// // Read the user's anime list
     /// let list = anime_list.read().unwrap();
-    /// 
+    ///
     /// // Find Toradora in the list entries
     /// let toradora = list
     ///     .entries
     ///     .into_iter()
     ///     .find(|e| e.series_info.id == 4224).unwrap();
-    /// 
+    ///
     /// // Delete Toradora from the user's anime list
     /// anime_list.delete(&toradora).unwrap();
     /// ```
@@ -551,17 +540,17 @@ impl<'a, E: ListEntry> List<'a, E> {
     }
 
     /// Removes an entry from a user's list by its id.
-    /// 
+    ///
     /// If the entry isn't already on a user's list, nothing will happen.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// use mal::MAL;
-    /// 
+    ///
     /// // Create a new MAL instance
     /// let mal = MAL::new("username", "password");
-    /// 
+    ///
     /// // Delete the anime with the id of 4224 (Toradora) from the user's anime list
     /// mal.anime_list().delete_id(4224).unwrap();
     /// ```
@@ -570,7 +559,7 @@ impl<'a, E: ListEntry> List<'a, E> {
         Request::Delete(id, E::list_type())
             .send(self.mal)
             .map_err(MALError::Request)?;
-        
+
         Ok(())
     }
 }
@@ -710,7 +699,10 @@ pub struct ListEntries<E: ListEntry> {
 }
 
 /// Represents an entry on a user's list.
-pub trait ListEntry where Self: Sized {
+pub trait ListEntry
+where
+    Self: Sized,
+{
     type Info: SeriesInfo;
     type Values: EntryValues;
     type UserInfo: UserInfo;
@@ -732,7 +724,10 @@ pub trait ListEntry where Self: Sized {
 }
 
 /// Used for types that contain basic series information.
-pub trait SeriesInfo where Self: Sized {
+pub trait SeriesInfo
+where
+    Self: Sized,
+{
     #[doc(hidden)]
     fn parse_search_result(xml_elem: &Element) -> Result<Self, ListError>;
 }
@@ -745,7 +740,7 @@ pub trait EntryValues {
         self.add_changed_values(&mut entry);
 
         let mut buffer = Vec::new();
-        entry.write_to(&mut buffer).map_err(|e| ListError::Minidom(SyncFailure::new(e)))?;
+        entry.write_to(&mut buffer).map_err(ListError::Minidom)?;
 
         String::from_utf8(buffer).map_err(ListError::Utf8)
     }
@@ -758,7 +753,10 @@ pub trait EntryValues {
 }
 
 /// Represents info about a user's list.
-pub trait UserInfo where Self: Sized {
+pub trait UserInfo
+where
+    Self: Sized,
+{
     #[doc(hidden)]
     fn from_xml(xml_elem: &Element) -> Result<Self, ListError>;
 }

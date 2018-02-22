@@ -57,7 +57,6 @@ use list::anime::AnimeEntry;
 #[cfg(feature = "manga")]
 use list::manga::MangaEntry;
 
-use failure::SyncFailure;
 use list::{List, ListError, SeriesInfo};
 use request::{Request, RequestError};
 use reqwest::StatusCode;
@@ -68,7 +67,7 @@ use std::fmt::{self, Debug};
 #[derive(Fail, Debug)]
 pub enum MALError {
     #[fail(display = "{}", _0)]
-    Minidom(#[cause] SyncFailure<::minidom::error::Error>),
+    Minidom(#[cause] ::minidom::error::Error),
 
     #[fail(display = "{}", _0)]
     Request(#[cause] ::request::RequestError),
@@ -171,8 +170,7 @@ impl<'a> Debug for MAL<'a> {
         write!(
             f,
             "MAL {{ username: {:?}, client: {:?} }}",
-            self.username,
-            self.client
+            self.username, self.client
         )
     }
 }
