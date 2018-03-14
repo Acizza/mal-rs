@@ -89,9 +89,9 @@
 //! ```
 
 use chrono::NaiveDate;
-use {MALError, MAL};
+use error::{MALError, ListError, RequestError};
+use MAL;
 use minidom::Element;
-use RequestError;
 use request::{ListType, Request};
 use reqwest::StatusCode;
 use std::fmt::{self, Debug, Display};
@@ -184,33 +184,6 @@ macro_rules! impl_entryvalues {
 pub mod anime;
 #[cfg(feature = "manga")]
 pub mod manga;
-
-#[derive(Fail, Debug)]
-pub enum ListError {
-    #[fail(display = "{}", _0)]
-    Io(#[cause] ::std::io::Error),
-
-    #[fail(display = "{}", _0)]
-    Minidom(#[cause] ::minidom::error::Error),
-
-    #[fail(display = "{}", _0)]
-    Utf8(#[cause] ::std::string::FromUtf8Error),
-
-    #[fail(display = "no user info found")]
-    NoUserInfoFound,
-
-    #[fail(display = "\"{}\" does not map to a known series status", _0)]
-    UnknownStatus(String),
-
-    #[fail(display = "\"{}\" does not map to a known series type", _0)]
-    UnknownSeriesType(String),
-
-    #[fail(display = "no XML node named \"{}\"", _0)]
-    MissingXMLNode(String),
-
-    #[fail(display = "failed to parse XML node \"{}\" into appropriate type", _0)]
-    XMLConversionFailed(String),
-}
 
 /// This struct allows you to add, update, delete, and read entries to / from a user's list,
 /// as well as search for an anime / manga series.

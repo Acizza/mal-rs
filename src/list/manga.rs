@@ -2,7 +2,8 @@
 //! perform operations on a user's manga list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use list::{self, ListError, Status};
+use error::ListError;
+use list::{self, Status};
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
@@ -44,16 +45,13 @@ impl SeriesInfo for MangaInfo {
             },
             series_type: {
                 let s_type = list::parse_xml_child(xml, "type")?;
-
                 MangaType::from_str(&s_type).ok_or_else(|| ListError::UnknownSeriesType(s_type))?
             },
             chapters: list::parse_xml_child(xml, "chapters")?,
             volumes: list::parse_xml_child(xml, "volumes")?,
             publishing_status: {
                 let status = list::parse_xml_child(xml, "status")?;
-
-                PublishingStatus::from_str(&status)
-                    .ok_or_else(|| ListError::UnknownStatus(status))?
+                PublishingStatus::from_str(&status).ok_or_else(|| ListError::UnknownStatus(status))?
             },
             start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),

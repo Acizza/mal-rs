@@ -1,18 +1,7 @@
+use error::RequestError;
 use MAL;
-use reqwest::{self, RequestBuilder, Response, StatusCode, Url};
+use reqwest::{RequestBuilder, Response, StatusCode, Url};
 use reqwest::header::{ContentType, Headers};
-
-#[derive(Fail, Debug)]
-pub enum RequestError {
-    #[fail(display = "received bad response code from MAL: {}", _0)]
-    BadResponseCode(StatusCode),
-
-    #[fail(display = "error sending request to MAL: {}", _0)]
-    HttpError(#[cause] reqwest::Error),
-
-    #[fail(display = "failed to read response text: {}", _0)]
-    ReadResponse(#[cause] reqwest::Error),
-}
 
 lazy_static! {
     static ref BASE_URL: Url = Url::parse("https://myanimelist.net").unwrap();

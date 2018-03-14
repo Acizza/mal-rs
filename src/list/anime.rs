@@ -2,7 +2,8 @@
 //! perform operations on a user's anime list.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use list::{self, ListError, Status};
+use error::ListError;
+use list::{self, Status};
 use minidom::Element;
 use request::ListType;
 use SeriesInfo;
@@ -264,8 +265,7 @@ impl AnimeValues {
                 list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_start_date")?).into()
             },
             finish_date: {
-                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?)
-                    .into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?).into()
             },
             status: {
                 let status_num = list::parse_xml_child(xml, "my_status")?;

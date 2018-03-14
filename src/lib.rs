@@ -44,6 +44,7 @@ extern crate failure;
 #[macro_use]
 extern crate lazy_static;
 
+pub mod error;
 pub mod list;
 
 mod request;
@@ -57,24 +58,13 @@ use list::anime::AnimeEntry;
 #[cfg(feature = "manga")]
 use list::manga::MangaEntry;
 
-use list::{List, ListError, SeriesInfo};
-use request::{Request, RequestError};
+use error::{MALError, RequestError};
+use list::{List, SeriesInfo};
+use request::Request;
 use reqwest::StatusCode;
 use std::borrow::Cow;
 use std::convert::Into;
 use std::fmt::{self, Debug};
-
-#[derive(Fail, Debug)]
-pub enum MALError {
-    #[fail(display = "{}", _0)]
-    Minidom(#[cause] ::minidom::error::Error),
-
-    #[fail(display = "{}", _0)]
-    Request(#[cause] ::request::RequestError),
-
-    #[fail(display = "{}", _0)]
-    List(#[cause] ListError),
-}
 
 /// Used to interact with the MyAnimeList API with authorization being handled automatically.
 #[derive(Clone)]
