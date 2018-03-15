@@ -10,8 +10,10 @@
 //! requests will return a 403 (Forbidden) status code.
 //!
 //! [`MAL`]: ./struct.MAL.html
-//!
+//! 
 //! # Examples
+//!
+//! Adding an anime to a user's list:
 //!
 //! ```no_run
 //! use mal::MAL;
@@ -37,6 +39,56 @@
 //!
 //! // Add the entry to the user's anime list
 //! mal.anime_list().add(&mut entry).unwrap();
+//! ```
+//!
+//! Updating a manga on a user's list by its ID:
+//!
+//! ```no_run
+//! use mal::MAL;
+//! use mal::list::Status;
+//! use mal::list::manga::MangaValues;
+//!
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//!
+//! // Create new entry values
+//! let mut values = MangaValues::new();
+//!
+//! // Set the number of read chapters to 25, read volumes to 2, score to 10, and status to completed
+//! values.set_read_chapters(25)
+//!       .set_read_volumes(2)
+//!       .set_score(10)
+//!       .set_status(Status::Completed);
+//!
+//! // Update the entry with an id of 2 (Berserk) on the user's manga list with the specified values
+//! mal.manga_list().update_id(2, &mut values).unwrap();
+//! ```
+//!
+//! Retrieving an anime off of a user's list and updating it:
+//!
+//! ```no_run
+//! use mal::MAL;
+//! use mal::list::Status;
+//!
+//! // Create a new MAL instance
+//! let mal = MAL::new("username", "password");
+//!
+//! // Read the user's anime list
+//! let list = mal.anime_list().read().unwrap();
+//!
+//! // Find the first series on the user's list that's being watched
+//! let mut entry = list.entries.into_iter().find(|e| {
+//!     e.values.status() == Status::WatchingOrReading
+//! }).unwrap();
+//!
+//! // Set the entrie's watched episodes to its total episodes, its score to 10, and status to completed
+//! entry.values
+//!      .set_watched_episodes(entry.series_info.episodes)
+//!      .set_score(10)
+//!      .set_status(Status::Completed);
+//!
+//! // Update the entry on the user's anime list with the new values
+//! mal.anime_list().update(&mut entry).unwrap();
 //! ```
 
 #[macro_use]
