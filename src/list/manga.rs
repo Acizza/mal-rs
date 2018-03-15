@@ -12,15 +12,17 @@ use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 /// Represents basic information of a manga series on MyAnimeList.
 #[derive(Debug, Clone)]
 pub struct MangaInfo {
-    /// The ID of the manga series.
+    /// The ID of the series.
     pub id: u32,
-    /// The title of the anime series.
+    /// The title of the series.
     pub title: String,
+    /// The English title of the series. It is not available on list entries.
+    pub english_title: Option<String>,
     /// The alternative titles for the series.
     pub synonyms: Vec<String>,
-    /// The number of chapters in the manga series.
+    /// The number of chapters in the series.
     pub chapters: u32,
-    /// The number of volumes in the manga series.
+    /// The number of volumes in the series.
     pub volumes: u32,
     /// The type of series that this is.
     pub series_type: MangaType,
@@ -43,6 +45,11 @@ impl SeriesInfo for MangaInfo {
         let entry = MangaInfo {
             id: list::parse_xml_child(xml, "id")?,
             title: list::parse_xml_child(xml, "title")?,
+            english_title: match list::parse_xml_child::<String>(xml, "english") {
+                Ok(ref title) if title.is_empty() => None,
+                Ok(title) => Some(title),
+                Err(e) => return Err(e),
+            },
             synonyms: {
                 list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
             },
@@ -156,6 +163,7 @@ impl ListEntry for MangaEntry {
         let info = MangaInfo {
             id: list::parse_xml_child(xml, "series_mangadb_id")?,
             title: list::parse_xml_child(xml, "series_title")?,
+            english_title: None,
             synonyms: {
                 list::split_by_delim(
                     &list::parse_xml_child::<String>(xml, "series_synonyms")?,

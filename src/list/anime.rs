@@ -12,13 +12,15 @@ use super::{ChangeTracker, EntryValues, ListEntry, UserInfo};
 /// Represents basic information of an anime series on MyAnimeList.
 #[derive(Debug, Clone)]
 pub struct AnimeInfo {
-    /// The ID of the anime series.
+    /// The ID of the series.
     pub id: u32,
-    /// The title of the anime series.
+    /// The Japanese title of the series.
     pub title: String,
+    /// The English title of the series. It is not available on list entries.
+    pub english_title: Option<String>,
     /// The alternative titles for the series.
     pub synonyms: Vec<String>,
-    /// The number of episodes in the anime series.
+    /// The number of episodes in the series.
     pub episodes: u32,
     /// The type of series that this is.
     pub series_type: AnimeType,
@@ -41,6 +43,11 @@ impl SeriesInfo for AnimeInfo {
         let entry = AnimeInfo {
             id: list::parse_xml_child(xml, "id")?,
             title: list::parse_xml_child(xml, "title")?,
+            english_title: match list::parse_xml_child::<String>(xml, "english") {
+                Ok(ref title) if title.is_empty() => None,
+                Ok(title) => Some(title),
+                Err(e) => return Err(e),
+            },
             synonyms: {
                 list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
             },
@@ -159,6 +166,7 @@ impl ListEntry for AnimeEntry {
         let info = AnimeInfo {
             id: list::parse_xml_child(xml, "series_animedb_id")?,
             title: list::parse_xml_child(xml, "series_title")?,
+            english_title: None,
             synonyms: {
                 list::split_by_delim(
                     &list::parse_xml_child::<String>(xml, "series_synonyms")?,
