@@ -18,18 +18,21 @@ pub struct MangaInfo {
     pub title: String,
     /// The alternative titles for the series.
     pub synonyms: Vec<String>,
-    /// The type of series that this is.
-    pub series_type: MangaType,
     /// The number of chapters in the manga series.
     pub chapters: u32,
     /// The number of volumes in the manga series.
     pub volumes: u32,
+    /// The type of series that this is.
+    pub series_type: MangaType,
     /// The current publishing status of the series.
     pub publishing_status: PublishingStatus,
     /// The date the series started airing.
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
     pub end_date: Option<NaiveDate>,
+    /// The description of the series.
+    /// It is not available on list entries, and it is formatted as HTML.
+    pub synopsis: Option<String>,
     /// The URL to the cover image of the series.
     pub image_url: String,
 }
@@ -43,18 +46,19 @@ impl SeriesInfo for MangaInfo {
             synonyms: {
                 list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
             },
+            chapters: list::parse_xml_child(xml, "chapters")?,
+            volumes: list::parse_xml_child(xml, "volumes")?,
             series_type: {
                 let s_type = list::parse_xml_child(xml, "type")?;
                 MangaType::from_str(&s_type).ok_or_else(|| ListError::UnknownSeriesType(s_type))?
             },
-            chapters: list::parse_xml_child(xml, "chapters")?,
-            volumes: list::parse_xml_child(xml, "volumes")?,
             publishing_status: {
                 let status = list::parse_xml_child(xml, "status")?;
                 PublishingStatus::from_str(&status).ok_or_else(|| ListError::UnknownStatus(status))?
             },
             start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),
+            synopsis: Some(list::parse_xml_child(xml, "synopsis")?),
             image_url: list::parse_xml_child(xml, "image")?,
         };
 
@@ -158,14 +162,14 @@ impl ListEntry for MangaEntry {
                     "; ",
                 )
             },
+            chapters: list::parse_xml_child(xml, "series_chapters")?,
+            volumes: list::parse_xml_child(xml, "series_volumes")?,
             series_type: {
                 let s_type = list::parse_xml_child(xml, "series_type")?;
 
                 MangaType::from_i32(s_type)
                     .ok_or_else(|| ListError::UnknownSeriesType(s_type.to_string()))?
             },
-            chapters: list::parse_xml_child(xml, "series_chapters")?,
-            volumes: list::parse_xml_child(xml, "series_volumes")?,
             publishing_status: {
                 let status = list::parse_xml_child(xml, "series_status")?;
 
@@ -176,6 +180,7 @@ impl ListEntry for MangaEntry {
                 list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_start")?)
             },
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_end")?),
+            synopsis: None,
             image_url: list::parse_xml_child(xml, "series_image")?,
         };
 

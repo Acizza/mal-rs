@@ -20,14 +20,17 @@ pub struct AnimeInfo {
     pub synonyms: Vec<String>,
     /// The number of episodes in the anime series.
     pub episodes: u32,
-    /// The current airing status of the series.
-    pub airing_status: AiringStatus,
     /// The type of series that this is.
     pub series_type: AnimeType,
+    /// The current airing status of the series.
+    pub airing_status: AiringStatus,
     /// The date the series started airing.
     pub start_date: Option<NaiveDate>,
     /// The date the series finished airing.
     pub end_date: Option<NaiveDate>,
+    /// The description of the series.
+    /// It is not available on list entries, and it is formatted as HTML.
+    pub synopsis: Option<String>,
     /// The URL to the cover image of the series.
     pub image_url: String,
 }
@@ -42,16 +45,17 @@ impl SeriesInfo for AnimeInfo {
                 list::split_by_delim(&list::parse_xml_child::<String>(xml, "synonyms")?, "; ")
             },
             episodes: list::parse_xml_child(xml, "episodes")?,
-            airing_status: {
-                let status = list::parse_xml_child(xml, "status")?;
-                AiringStatus::from_str(&status).ok_or_else(|| ListError::UnknownStatus(status))?
-            },
             series_type: {
                 let s_type = list::parse_xml_child(xml, "type")?;
                 AnimeType::from_str(&s_type).ok_or_else(|| ListError::UnknownSeriesType(s_type))?
             },
+            airing_status: {
+                let status = list::parse_xml_child(xml, "status")?;
+                AiringStatus::from_str(&status).ok_or_else(|| ListError::UnknownStatus(status))?
+            },
             start_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "start_date")?),
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "end_date")?),
+            synopsis: Some(list::parse_xml_child(xml, "synopsis")?),
             image_url: list::parse_xml_child(xml, "image")?,
         };
 
@@ -162,22 +166,23 @@ impl ListEntry for AnimeEntry {
                 )
             },
             episodes: list::parse_xml_child(xml, "series_episodes")?,
-            airing_status: {
-                let status = list::parse_xml_child(xml, "series_status")?;
-
-                AiringStatus::from_i32(status)
-                    .ok_or_else(|| ListError::UnknownStatus(status.to_string()))?
-            },
             series_type: {
                 let s_type = list::parse_xml_child(xml, "series_type")?;
 
                 AnimeType::from_i32(s_type)
                     .ok_or_else(|| ListError::UnknownSeriesType(s_type.to_string()))?
             },
+            airing_status: {
+                let status = list::parse_xml_child(xml, "series_status")?;
+
+                AiringStatus::from_i32(status)
+                    .ok_or_else(|| ListError::UnknownStatus(status.to_string()))?
+            },
             start_date: {
                 list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_start")?)
             },
             end_date: list::parse_str_date(&list::parse_xml_child::<String>(xml, "series_end")?),
+            synopsis: None,
             image_url: list::parse_xml_child(xml, "series_image")?,
         };
 
@@ -265,7 +270,8 @@ impl AnimeValues {
                 list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_start_date")?).into()
             },
             finish_date: {
-                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?).into()
+                list::parse_str_date(&list::parse_xml_child::<String>(xml, "my_finish_date")?)
+                    .into()
             },
             status: {
                 let status_num = list::parse_xml_child(xml, "my_status")?;
