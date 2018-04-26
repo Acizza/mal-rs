@@ -1,6 +1,6 @@
 [package]
 name = "mal"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Acizza <jonathanmce@gmail.com>"]
 description = "A library to interact with the MyAnimeList API."
 repository = "https://github.com/Acizza/mal-rs"
