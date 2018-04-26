@@ -12,7 +12,7 @@ By default, the library builds with support to work with both anime and manga.
 If you need to search for / perform operations on both the user's anime and manga list, you can simply add `mal` as a dependency to your `Cargo.toml` file:
 ```toml
 [dependencies]
-mal = "0.7"
+mal = "0.8"
 ```
 
 If you only need to work with just one type of list, you should use the following feature gates to reduce the final binary size and compilation time:
@@ -20,7 +20,7 @@ If you only need to work with just one type of list, you should use the followin
 If you only need to search for anime / work with anime on a user's list, use the `anime` feature:
 ```toml
 [dependencies.mal]
-version = "0.7"
+version = "0.8"
 default-features = false
 
 features = ["anime"]
@@ -29,7 +29,7 @@ features = ["anime"]
 If you only need to search for manga / work with manga on a user's list, use the `manga` feature:
 ```toml
 [dependencies.mal]
-version = "0.7"
+version = "0.8"
 default-features = false
 
 features = ["manga"]
