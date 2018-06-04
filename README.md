@@ -1,5 +1,7 @@
 # mal-rs [![Crates.io](https://img.shields.io/crates/v/mal.svg)](https://crates.io/crates/mal) [![Documentation](https://docs.rs/mal/badge.svg)](https://docs.rs/mal)
-The purpose of this library is to provide high-level access to the [MyAnimeList](https://myanimelist.net) API. 
+**NOTE**: Since the MyAnimeList API was suddenly shut down, this library does not currently work. If/when the API is restored, this library will be updated to support it.
+
+The purpose of this library is to provide high-level access to the [MyAnimeList](https://myanimelist.net) API.
 
 At the time of writing, all features of the API are implemented, which include:
 * Adding, updating, removing, and reading entries from a user's anime and manga list
